@@ -19,7 +19,7 @@ rm(list= ls())
 
 setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Figures")
 
-data <- read_parquet("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data/data_hw_SES_CEC.parquet")
+data <- read_parquet("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data/data_hw.parquet")
 
 glimpse(data)
 
@@ -31,10 +31,10 @@ glimpse(data)
 
 NHW_country <- data %>% 
   ggplot() +
-    geom_boxplot(aes(x = Country, y = HWN_EHF_L1AD_tpw, fill = Country), 
+    geom_boxplot(aes(x = Country, y = HWN_EHF, fill = Country), 
                outlier.shape = NA, linewidth = 0.5, width = 0.6) +
   scale_fill_brewer(palette = "Reds") +
-  geom_jitter(aes(x = Country, y = HWN_EHF_L1AD_tpw), 
+  geom_jitter(aes(x = Country, y = HWN_EHF), 
               color = "#737373", width = 0.2, na.rm = TRUE, size = 0.4) +
   theme_minimal() +
   theme(
@@ -57,10 +57,10 @@ ggsave("NHW_country.png", plot = NHW_country,
 
 NHW_clz <- data %>% 
   ggplot() +
-  geom_boxplot(aes(x = CLZ, y = HWN_EHF_L1AD_tpw, fill = CLZ), 
+  geom_boxplot(aes(x = CLZ, y = HWN_EHF, fill = CLZ), 
                outlier.shape = NA, linewidth = 0.5, width = 0.6) +
   scale_fill_brewer(palette = "OrRd") +
-  geom_jitter(aes(x = CLZ, y = HWN_EHF_L1AD_tpw), 
+  geom_jitter(aes(x = CLZ, y = HWN_EHF), 
               color = "#737373", width = 0.2, na.rm = TRUE, size = 0.4) +
   theme_minimal() +
   theme(
@@ -79,11 +79,11 @@ ggsave("NHW_clz.png", plot = NHW_clz,
        bg = "white")
 
 
-# 3. By country per year
+# 3. By country per YEAR
 
-NHW_country_year <- data %>%
+NHW_country_YEAR <- data %>%
   ggplot() +
-  geom_boxplot(aes(x = factor(year), y = HWN_EHF_L1AD_tpw), 
+  geom_boxplot(aes(x = factor(YEAR), y = HWN_EHF), 
                fill = "#fb6a4a",
                outlier.shape = NA, linewidth = 0.4, width = 0.5) +
   facet_wrap(~ Country, ncol = 3) + 
@@ -97,21 +97,21 @@ NHW_country_year <- data %>%
     legend.position = "none",
     strip.text = element_text(size = 10, face = "bold")
   ) +
-  xlab("Year") +
+  xlab("YEAR") +
   ylab("Number of heatwaves")
 
-NHW_country_year
+NHW_country_YEAR
 
-ggsave("NHW_country_year.png", plot = NHW_country_year, 
+ggsave("NHW_country_YEAR.png", plot = NHW_country_YEAR, 
        dpi = 300, width = 10, height = 7, units = "in", 
        bg = "white")
 
 
-# 4. By CLZ per year
+# 4. By CLZ per YEAR
 
-NHW_CLZ_year <- data %>%
+NHW_CLZ_YEAR <- data %>%
   ggplot() +
-  geom_boxplot(aes(x = factor(year), y = HWN_EHF_L1AD_tpw), 
+  geom_boxplot(aes(x = factor(YEAR), y = HWN_EHF), 
                fill = "#fcbba1",
                outlier.shape = NA, linewidth = 0.4, width = 0.5) +
   facet_wrap(~ CLZ, ncol = 2) + 
@@ -125,12 +125,12 @@ NHW_CLZ_year <- data %>%
     legend.position = "none",
     strip.text = element_text(size = 10, face = "bold")
   ) +
-  xlab("Year") +
+  xlab("YEAR") +
   ylab("Number of heatwaves")
 
-NHW_CLZ_year
+NHW_CLZ_YEAR
 
-ggsave("NHW_CLZ_year.png", plot = NHW_CLZ_year, 
+ggsave("NHW_CLZ_YEAR.png", plot = NHW_CLZ_YEAR, 
        dpi = 300, width = 10, height = 7, units = "in", 
        bg = "white")
 
@@ -142,18 +142,18 @@ ggsave("NHW_CLZ_year.png", plot = NHW_CLZ_year,
 # 1. For each city by country
 
 df_country_avg <- data %>%
-  group_by(Country, year) %>%
-  summarize(mean_NHW = mean(HWN_EHF_L1AD_tpw, na.rm = TRUE), .groups = "drop")
+  group_by(Country, YEAR) %>%
+  summarize(mean_NHW = mean(HWN_EHF, na.rm = TRUE), .groups = "drop")
 
 ggplot() +
-  geom_line(data = data, aes(x = year, y = HWN_EHF_L1AD_tpw, group = SALID1), 
+  geom_line(data = data, aes(x = YEAR, y = HWN_EHF, group = SALID1), 
             color = "#525252", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = year, y = mean_NHW), 
+  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_NHW), 
             color = "red", linewidth = 0.8) +
   facet_wrap(~Country) +
   coord_cartesian(ylim = c(0, 20)) +
   labs(subtitle = "Black lines = cities | Red line = country average",
-       x = "Year",
+       x = "YEAR",
        y = "NHW") +
   theme_bw(base_size = 13) +
   theme(strip.text = element_text(face = "bold"),
@@ -166,18 +166,18 @@ ggsave(filename = "lines_NHW_by_country.png",
 # 1. For each city by CLZ
 
 df_CLZ_avg <- data %>%
-  group_by(CLZ, year) %>%
-  summarize(mean_NHW = mean(HWN_EHF_L1AD_tpw, na.rm = TRUE), .groups = "drop")
+  group_by(CLZ, YEAR) %>%
+  summarize(mean_NHW = mean(HWN_EHF, na.rm = TRUE), .groups = "drop")
 
 ggplot() +
-  geom_line(data = data, aes(x = year, y = HWN_EHF_L1AD_tpw, group = SALID1), 
+  geom_line(data = data, aes(x = YEAR, y = HWN_EHF, group = SALID1), 
             color = "#525252", alpha = 0.4) +
-  geom_line(data = df_CLZ_avg, aes(x = year, y = mean_NHW), 
+  geom_line(data = df_CLZ_avg, aes(x = YEAR, y = mean_NHW), 
             color = "red", linewidth = 0.8) +
   facet_wrap(~CLZ) +
   coord_cartesian(ylim = c(0, 20)) +
   labs(subtitle = "Black lines = cities | Red line = CLZ average",
-       x = "Year",
+       x = "YEAR",
        y = "NHW") +
   theme_bw(base_size = 13) +
   theme(strip.text = element_text(face = "bold"),
@@ -193,12 +193,12 @@ ggsave(filename = "lines_NHW_by_CLZ.png",
 # 1.  by country
 
 NHW_scatter_country <- data %>% 
-ggplot(aes(x = year, y = HWN_EHF_L1AD_tpw)) +
+ggplot(aes(x = YEAR, y = HWN_EHF)) +
   geom_point(color = "red", alpha = 0.4, size = 1.2) + 
   geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
   facet_wrap(~ Country) +
   coord_cartesian(ylim = c(0, 20)) +  
-  labs(x = "Year", y = "NHW") +
+  labs(x = "YEAR", y = "NHW") +
   theme_bw(base_size = 13) +
   theme(
     strip.text = element_text(face = "bold"),
@@ -214,7 +214,7 @@ ggsave("NHW_scatter_country.png", plot = NHW_scatter_country,
 unique(data$Country)
 
 NHW_scatter_all_countries <- data %>% 
-ggplot(aes(x = year, y = HWN_EHF_L1AD_tpw, color = Country)) +
+ggplot(aes(x = YEAR, y = HWN_EHF, color = Country)) +
   geom_point(color = "#525252", alpha = 0.4, size = 1.2) +
   geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
   scale_color_manual(
@@ -226,8 +226,8 @@ ggplot(aes(x = year, y = HWN_EHF_L1AD_tpw, color = Country)) +
       "Colombia" = "#ef3b2c",
       "Mexico"  = "#cb181d",
       "Peru"  = "#99000d")) +
-  coord_cartesian(ylim = c(0, 20), xlim = c(min(data$year), 2024)) +
-  labs(x = "Year", y = "NHW", color = "Country") +
+  coord_cartesian(ylim = c(0, 20), xlim = c(min(data$YEAR), 2024)) +
+  labs(x = "YEAR", y = "NHW", color = "Country") +
   theme_classic(base_size = 13) +
   theme(
     legend.position = "bottom",
@@ -241,12 +241,12 @@ ggsave("NHW_scatter_all_countries.png", plot = NHW_scatter_all_countries,
 # 3. CLZ
 
 NHW_scatter_CLZ <- data %>% 
-  ggplot(aes(x = year, y = HWN_EHF_L1AD_tpw)) +
+  ggplot(aes(x = YEAR, y = HWN_EHF)) +
   geom_point(color = "red", alpha = 0.4, size = 1.2) + 
   geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
   facet_wrap(~ CLZ) +
   coord_cartesian(ylim = c(0, 20)) +  
-  labs(x = "Year", y = "NHW") +
+  labs(x = "YEAR", y = "NHW") +
   theme_bw(base_size = 13) +
   theme(
     strip.text = element_text(face = "bold"),
@@ -262,7 +262,7 @@ ggsave("NHW_scatter_CLZ.png", plot = NHW_scatter_CLZ,
 unique(data$CLZ)
 
 NHW_scatter_all_CLZ <- data %>% 
-  ggplot(aes(x = year, y = HWN_EHF_L1AD_tpw, color = CLZ)) +
+  ggplot(aes(x = YEAR, y = HWN_EHF, color = CLZ)) +
   geom_point(color = "#525252", alpha = 0.4, size = 1.2) +
   geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
   scale_color_manual(
@@ -271,8 +271,8 @@ NHW_scatter_all_CLZ <- data %>%
       "Arid" = "#fee08b",
       "Temperate" = "#fc9272",
       "Tropical"  = "#cb181d")) +
-  coord_cartesian(ylim = c(0, 20), xlim = c(min(data$year), 2024)) +
-  labs(x = "Year", y = "NHW", color = "CLZ") +
+  coord_cartesian(ylim = c(0, 20), xlim = c(min(data$YEAR), 2024)) +
+  labs(x = "YEAR", y = "NHW", color = "CLZ") +
   theme_classic(base_size = 13) +
   theme(
     legend.position = "bottom",
@@ -311,7 +311,7 @@ plot_trends_by_country <- function(data, country_name, max_cities_per_plot = 20)
     cities_block <- city_blocks[[i]]
     block_data <- country_data[country_data$SALID1 %in% cities_block, ]
     
-    p <- ggplot(block_data, aes(x = year, y = HWN_EHF_L1AD_tpw)) +
+    p <- ggplot(block_data, aes(x = YEAR, y = HWN_EHF)) +
       geom_point(alpha = 0.7, size = 1.5, color = "#525252") +
       geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 1) +
       facet_wrap(~ SALID1, ncol = 4) +
@@ -320,7 +320,7 @@ plot_trends_by_country <- function(data, country_name, max_cities_per_plot = 20)
         title = paste("NHW Trend in", country_name), 
         subtitle = paste("Cities", ((i - 1) * max_cities_per_plot + 1), "to", min(i * max_cities_per_plot, total_cities), "of", total_cities),
         y = "NHW",
-        x = "Year"
+        x = "YEAR"
       ) +
       theme(
         axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
@@ -382,7 +382,7 @@ labels_annual <- c("0", "1 - 4", "5 - 9", "10 - 14", "≥15")
 data_map <- data_map %>%
   mutate(
     hwn_class = cut(
-      HWN_EHF_L1AD_tpw,
+      HWN_EHF,
       breaks = breaks_annual,
       labels = labels_annual,
       include.lowest = TRUE,
@@ -426,7 +426,7 @@ map_HWN_annual <- ggplot() +
     fill = guide_legend(nrow = 1),
     size = guide_legend(nrow = 1)
   ) +
-  facet_wrap(~year, ncol = 5) +
+  facet_wrap(~YEAR, ncol = 5) +
   labs(title = "", x = "", y = "") +
   theme_minimal() +
   theme(
@@ -442,18 +442,18 @@ ggsave("map_HWN_annual.png", map_HWN_annual, width = 21, height = 25, dpi = 700,
 ggsave("map_HWN_annual.pdf", map_HWN_annual, width = 21, height = 25, dpi = 700, device = "pdf")
 
 
-# 2. First 5 years and 5 last years
-# select years
-data_map_years <- data_map %>%
-  filter(between(year, 2000, 2004) | between(year, 2020, 2024)) %>%
+# 2. First 5 YEARs and 5 last YEARs
+# select YEARs
+data_map_YEARs <- data_map %>%
+  filter(between(YEAR, 2000, 2004) | between(YEAR, 2020, 2024)) %>%
   arrange(desc(as.numeric(hwn_class)))  # garante que círculos maiores fiquem por baixo
 
 # Map
-map_HWN_5years <- ggplot() +
+map_HWN_5YEARs <- ggplot() +
   geom_sf(data = shp_base, fill = "#bdbdbd", color = "#bdbdbd", linewidth = 0.3) +
   geom_sf(data = shp_SALURBAL_countries, fill = "white", color = "#bdbdbd", linewidth = 0.3) +
   geom_sf(
-    data = data_map_years,
+    data = data_map_YEARs,
     aes(geometry = geometry, size = hwn_class, fill = hwn_class),
     shape = 21,
     color = "#737373",
@@ -476,7 +476,7 @@ map_HWN_5years <- ggplot() +
     fill = guide_legend(nrow = 1),
     size = guide_legend(nrow = 1)
   ) +
-  facet_wrap(~year, ncol = 5) +
+  facet_wrap(~YEAR, ncol = 5) +
   labs(title = "", x = "", y = "") +
   theme_minimal() +
   theme(
@@ -488,8 +488,8 @@ map_HWN_5years <- ggplot() +
     legend.text = element_text(size = 20))
 
 # export
-ggsave("map_HWN_5years.png", map_HWN_5years, width = 21, height = 12, dpi = 700, bg = "white")
-ggsave("map_HWN_5years.pdf", map_HWN_5years, width = 21, height = 12, dpi = 700, device = "pdf")
+ggsave("map_HWN_5YEARs.png", map_HWN_5YEARs, width = 21, height = 12, dpi = 700, bg = "white")
+ggsave("map_HWN_5YEARs.pdf", map_HWN_5YEARs, width = 21, height = 12, dpi = 700, device = "pdf")
 
 
 #------------------------------------ HWF --------------------------------------------------------------------------------------------------------
@@ -502,10 +502,10 @@ ggsave("map_HWN_5years.pdf", map_HWN_5years, width = 21, height = 12, dpi = 700,
 
 FHW_country <- data %>% 
   ggplot() +
-  geom_boxplot(aes(x = Country, y = HWF_EHF_L1AD_tpw, fill = Country), 
+  geom_boxplot(aes(x = Country, y = HWF_EHF, fill = Country), 
                outlier.shape = NA, linewidth = 0.5, width = 0.6) +
   scale_fill_brewer(palette = "Reds") +
-  geom_jitter(aes(x = Country, y = HWF_EHF_L1AD_tpw), 
+  geom_jitter(aes(x = Country, y = HWF_EHF), 
               color = "#737373", width = 0.2, na.rm = TRUE, size = 0.4) +
   theme_minimal() +
   theme(
@@ -528,10 +528,10 @@ ggsave("FHW_country.png", plot = FHW_country,
 
 FHW_clz <- data %>% 
   ggplot() +
-  geom_boxplot(aes(x = CLZ, y = HWF_EHF_L1AD_tpw, fill = CLZ), 
+  geom_boxplot(aes(x = CLZ, y = HWF_EHF, fill = CLZ), 
                outlier.shape = NA, linewidth = 0.5, width = 0.6) +
   scale_fill_brewer(palette = "OrRd") +
-  geom_jitter(aes(x = CLZ, y = HWF_EHF_L1AD_tpw), 
+  geom_jitter(aes(x = CLZ, y = HWF_EHF), 
               color = "#737373", width = 0.2, na.rm = TRUE, size = 0.4) +
   theme_minimal() +
   theme(
@@ -550,11 +550,11 @@ ggsave("FHW_clz.png", plot = FHW_clz,
        bg = "white")
 
 
-# 3. By country per year
+# 3. By country per YEAR
 
-FHW_country_year <- data %>%
+FHW_country_YEAR <- data %>%
   ggplot() +
-  geom_boxplot(aes(x = factor(year), y = HWF_EHF_L1AD_tpw), 
+  geom_boxplot(aes(x = factor(YEAR), y = HWF_EHF), 
                fill = "#fb6a4a",
                outlier.shape = NA, linewidth = 0.4, width = 0.5) +
   facet_wrap(~ Country, ncol = 3) + 
@@ -568,21 +568,21 @@ FHW_country_year <- data %>%
     legend.position = "none",
     strip.text = element_text(size = 10, face = "bold")
   ) +
-  xlab("Year") +
+  xlab("YEAR") +
   ylab("Number of heatwaves")
 
-FHW_country_year
+FHW_country_YEAR
 
-ggsave("FHW_country_year.png", plot = FHW_country_year, 
+ggsave("FHW_country_YEAR.png", plot = FHW_country_YEAR, 
        dpi = 300, width = 10, height = 7, units = "in", 
        bg = "white")
 
 
-# 4. By CLZ per year
+# 4. By CLZ per YEAR
 
-FHW_CLZ_year <- data %>%
+FHW_CLZ_YEAR <- data %>%
   ggplot() +
-  geom_boxplot(aes(x = factor(year), y = HWF_EHF_L1AD_tpw), 
+  geom_boxplot(aes(x = factor(YEAR), y = HWF_EHF), 
                fill = "#fcbba1",
                outlier.shape = NA, linewidth = 0.4, width = 0.5) +
   facet_wrap(~ CLZ, ncol = 2) + 
@@ -596,12 +596,12 @@ FHW_CLZ_year <- data %>%
     legend.position = "none",
     strip.text = element_text(size = 10, face = "bold")
   ) +
-  xlab("Year") +
+  xlab("YEAR") +
   ylab("Number of heatwaves")
 
-FHW_CLZ_year
+FHW_CLZ_YEAR
 
-ggsave("FHW_CLZ_year.png", plot = FHW_CLZ_year, 
+ggsave("FHW_CLZ_YEAR.png", plot = FHW_CLZ_YEAR, 
        dpi = 300, width = 10, height = 7, units = "in", 
        bg = "white")
 
@@ -613,18 +613,18 @@ ggsave("FHW_CLZ_year.png", plot = FHW_CLZ_year,
 # 1. For each city by country
 
 df_country_avg <- data %>%
-  group_by(Country, year) %>%
-  summarize(mean_FHW = mean(HWF_EHF_L1AD_tpw, na.rm = TRUE), .groups = "drop")
+  group_by(Country, YEAR) %>%
+  summarize(mean_FHW = mean(HWF_EHF, na.rm = TRUE), .groups = "drop")
 
 ggplot() +
-  geom_line(data = data, aes(x = year, y = HWF_EHF_L1AD_tpw, group = SALID1), 
+  geom_line(data = data, aes(x = YEAR, y = HWF_EHF, group = SALID1), 
             color = "#525252", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = year, y = mean_FHW), 
+  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_FHW), 
             color = "red", linewidth = 0.8) +
   facet_wrap(~Country) +
   coord_cartesian(ylim = c(0, 180)) +
   labs(subtitle = "Black lines = cities | Red line = country average",
-       x = "Year",
+       x = "YEAR",
        y = "FHW") +
   theme_bw(base_size = 13) +
   theme(strip.text = element_text(face = "bold"),
@@ -637,18 +637,18 @@ ggsave(filename = "lines_FHW_by_country.png",
 # 1. For each city by CLZ
 
 df_CLZ_avg <- data %>%
-  group_by(CLZ, year) %>%
-  summarize(mean_FHW = mean(HWF_EHF_L1AD_tpw, na.rm = TRUE), .groups = "drop")
+  group_by(CLZ, YEAR) %>%
+  summarize(mean_FHW = mean(HWF_EHF, na.rm = TRUE), .groups = "drop")
 
 ggplot() +
-  geom_line(data = data, aes(x = year, y = HWF_EHF_L1AD_tpw, group = SALID1), 
+  geom_line(data = data, aes(x = YEAR, y = HWF_EHF, group = SALID1), 
             color = "#525252", alpha = 0.4) +
-  geom_line(data = df_CLZ_avg, aes(x = year, y = mean_FHW), 
+  geom_line(data = df_CLZ_avg, aes(x = YEAR, y = mean_FHW), 
             color = "red", linewidth = 0.8) +
   facet_wrap(~CLZ) +
   coord_cartesian(ylim = c(0, 180)) +
   labs(subtitle = "Black lines = cities | Red line = CLZ average",
-       x = "Year",
+       x = "YEAR",
        y = "FHW") +
   theme_bw(base_size = 13) +
   theme(strip.text = element_text(face = "bold"),
@@ -664,12 +664,12 @@ ggsave(filename = "lines_FHW_by_CLZ.png",
 # 1.  by country
 
 FHW_scatter_country <- data %>% 
-  ggplot(aes(x = year, y = HWF_EHF_L1AD_tpw)) +
+  ggplot(aes(x = YEAR, y = HWF_EHF)) +
   geom_point(color = "red", alpha = 0.4, size = 1.2) + 
   geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
   facet_wrap(~ Country) +
   coord_cartesian(ylim = c(0, 180)) +  
-  labs(x = "Year", y = "FHW") +
+  labs(x = "YEAR", y = "FHW") +
   theme_bw(base_size = 13) +
   theme(
     strip.text = element_text(face = "bold"),
@@ -685,7 +685,7 @@ ggsave("FHW_scatter_country.png", plot = FHW_scatter_country,
 unique(data$Country)
 
 FHW_scatter_all_countries <- data %>% 
-  ggplot(aes(x = year, y = HWF_EHF_L1AD_tpw, color = Country)) +
+  ggplot(aes(x = YEAR, y = HWF_EHF, color = Country)) +
   geom_point(color = "#525252", alpha = 0.4, size = 1.2) +
   geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
   scale_color_manual(
@@ -697,8 +697,8 @@ FHW_scatter_all_countries <- data %>%
       "Colombia" = "#ef3b2c",
       "Mexico"  = "#cb181d",
       "Peru"  = "#99000d")) +
-  coord_cartesian(ylim = c(0, 180), xlim = c(min(data$year), 2024)) +
-  labs(x = "Year", y = "FHW", color = "Country") +
+  coord_cartesian(ylim = c(0, 180), xlim = c(min(data$YEAR), 2024)) +
+  labs(x = "YEAR", y = "FHW", color = "Country") +
   theme_classic(base_size = 13) +
   theme(
     legend.position = "bottom",
@@ -712,12 +712,12 @@ ggsave("FHW_scatter_all_countries.png", plot = FHW_scatter_all_countries,
 # 3. CLZ
 
 FHW_scatter_CLZ <- data %>% 
-  ggplot(aes(x = year, y = HWF_EHF_L1AD_tpw)) +
+  ggplot(aes(x = YEAR, y = HWF_EHF)) +
   geom_point(color = "red", alpha = 0.4, size = 1.2) + 
   geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
   facet_wrap(~ CLZ) +
   coord_cartesian(ylim = c(0, 180)) +  
-  labs(x = "Year", y = "FHW") +
+  labs(x = "YEAR", y = "FHW") +
   theme_bw(base_size = 13) +
   theme(
     strip.text = element_text(face = "bold"),
@@ -733,7 +733,7 @@ ggsave("FHW_scatter_CLZ.png", plot = FHW_scatter_CLZ,
 unique(data$CLZ)
 
 FHW_scatter_all_CLZ <- data %>% 
-  ggplot(aes(x = year, y = HWF_EHF_L1AD_tpw, color = CLZ)) +
+  ggplot(aes(x = YEAR, y = HWF_EHF, color = CLZ)) +
   geom_point(color = "#525252", alpha = 0.4, size = 1.2) +
   geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
   scale_color_manual(
@@ -742,8 +742,8 @@ FHW_scatter_all_CLZ <- data %>%
       "Arid" = "#fee08b",
       "Temperate" = "#fc9272",
       "Tropical"  = "#cb181d")) +
-  coord_cartesian(ylim = c(0, 180), xlim = c(min(data$year), 2024)) +
-  labs(x = "Year", y = "FHW", color = "CLZ") +
+  coord_cartesian(ylim = c(0, 180), xlim = c(min(data$YEAR), 2024)) +
+  labs(x = "YEAR", y = "FHW", color = "CLZ") +
   theme_classic(base_size = 13) +
   theme(
     legend.position = "bottom",
@@ -782,7 +782,7 @@ plot_trends_by_country <- function(data, country_name, max_cities_per_plot = 20)
     cities_block <- city_blocks[[i]]
     block_data <- country_data[country_data$SALID1 %in% cities_block, ]
     
-    p <- ggplot(block_data, aes(x = year, y = HWF_EHF_L1AD_tpw)) +
+    p <- ggplot(block_data, aes(x = YEAR, y = HWF_EHF)) +
       geom_point(alpha = 0.7, size = 1.5, color = "#525252") +
       geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 1) +
       facet_wrap(~ SALID1, ncol = 4) +
@@ -791,7 +791,7 @@ plot_trends_by_country <- function(data, country_name, max_cities_per_plot = 20)
         title = paste("FHW Trend in", country_name), 
         subtitle = paste("Cities", ((i - 1) * max_cities_per_plot + 1), "to", min(i * max_cities_per_plot, total_cities), "of", total_cities),
         y = "FHW",
-        x = "Year"
+        x = "YEAR"
       ) +
       theme(
         axis.text.x = element_text(angle = 45, hjust = 1, color = "black"),
@@ -852,7 +852,7 @@ labels_annual <- c("0", "1 - 24", "25 - 49", "50 - 74", "75 - 99", "≥100")
 data_map <- data_map %>%
   mutate(
     HWF_class = cut(
-      HWF_EHF_L1AD_tpw,
+      HWF_EHF,
       breaks = breaks_annual,
       labels = labels_annual,
       include.lowest = TRUE,
@@ -896,7 +896,7 @@ map_HWF_annual <- ggplot() +
     fill = guide_legend(nrow = 1),
     size = guide_legend(nrow = 1)
   ) +
-  facet_wrap(~year, ncol = 5) +
+  facet_wrap(~YEAR, ncol = 5) +
   labs(title = "", x = "", y = "") +
   theme_minimal() +
   theme(
@@ -912,18 +912,18 @@ ggsave("map_HWF_annual.png", map_HWF_annual, width = 21, height = 25, dpi = 700,
 ggsave("map_HWF_annual.pdf", map_HWF_annual, width = 21, height = 25, dpi = 700, device = "pdf")
 
 
-# 2. First 5 years and 5 last years
-# select years
-data_map_years <- data_map %>%
-  filter(between(year, 2000, 2004) | between(year, 2020, 2024)) %>%
+# 2. First 5 YEARs and 5 last YEARs
+# select YEARs
+data_map_YEARs <- data_map %>%
+  filter(between(YEAR, 2000, 2004) | between(YEAR, 2020, 2024)) %>%
   arrange(desc(as.numeric(HWF_class)))  # garante que círculos maiores fiquem por baixo
 
 # Map
-map_HWF_5years <- ggplot() +
+map_HWF_5YEARs <- ggplot() +
   geom_sf(data = shp_base, fill = "#bdbdbd", color = "#bdbdbd", linewidth = 0.3) +
   geom_sf(data = shp_SALURBAL_countries, fill = "white", color = "#bdbdbd", linewidth = 0.3) +
   geom_sf(
-    data = data_map_years,
+    data = data_map_YEARs,
     aes(geometry = geometry, size = HWF_class, fill = HWF_class),
     shape = 21,
     color = "#737373",
@@ -946,7 +946,7 @@ map_HWF_5years <- ggplot() +
     fill = guide_legend(nrow = 1),
     size = guide_legend(nrow = 1)
   ) +
-  facet_wrap(~year, ncol = 5) +
+  facet_wrap(~YEAR, ncol = 5) +
   labs(title = "", x = "", y = "") +
   theme_minimal() +
   theme(
@@ -958,5 +958,5 @@ map_HWF_5years <- ggplot() +
     legend.text = element_text(size = 20))
 
 # export
-ggsave("map_HWF_5years.png", map_HWF_5years, width = 21, height = 12, dpi = 700, bg = "white")
-ggsave("map_HWF_5years.pdf", map_HWF_5years, width = 21, height = 12, dpi = 700, device = "pdf")
+ggsave("map_HWF_5YEARs.png", map_HWF_5YEARs, width = 21, height = 12, dpi = 700, bg = "white")
+ggsave("map_HWF_5YEARs.pdf", map_HWF_5YEARs, width = 21, height = 12, dpi = 700, device = "pdf")
