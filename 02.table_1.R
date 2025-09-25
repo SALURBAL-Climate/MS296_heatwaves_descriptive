@@ -14,7 +14,7 @@ rm(list= ls())
 
 setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data")
 
-data <- read_parquet("data_hw_pop_ex_INCLUDE_NOUNITCHG_L1AD.parquet")
+data <- read_parquet("data_hw_pop_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
 
 glimpse(data)
 
@@ -75,7 +75,7 @@ table_1d <- data %>%
 
 
 #5. HWN
-table_1e1 <- data %>% 
+table_1e <- data %>% 
   summarize(mean_HWN_EHF = mean(HWN_EHF, na.rm = TRUE), .by = c(Country, SALID1)) %>%
   summarize(HWN_EHF = glue("{med} ({lower}, {upper})",
                    med   = round(median(mean_HWN_EHF), 0),
@@ -85,16 +85,16 @@ table_1e1 <- data %>%
               values_from = HWN_EHF) %>%
   mutate(variables = "HWN_EHF", .before = 1)
 
-# 6. HWF
-table_1f <- data %>% 
-  summarize(mean_HWF_EHF = mean(HWF_EHF, na.rm = TRUE), .by = c(Country, SALID1)) %>%
-  summarize(HWF_EHF = glue("{med} ({lower}, {upper})",
-                   med   = round(median(mean_HWF_EHF), 0),
-                   lower = round(quantile(mean_HWF_EHF, .1), 0),
-                   upper = round(quantile(mean_HWF_EHF, .9), 0)), .by = Country) %>%
-  pivot_wider(names_from = Country,
-              values_from = HWF_EHF) %>%
-  mutate(variables = "HWF_EHF", .before = 1)
+# # 6. HWF - check to add or not
+# table_1f <- data %>% 
+#   summarize(mean_HWF_EHF = mean(HWF_EHF, na.rm = TRUE), .by = c(Country, SALID1)) %>%
+#   summarize(HWF_EHF = glue("{med} ({lower}, {upper})",
+#                    med   = round(median(mean_HWF_EHF), 0),
+#                    lower = round(quantile(mean_HWF_EHF, .1), 0),
+#                    upper = round(quantile(mean_HWF_EHF, .9), 0)), .by = Country) %>%
+#   pivot_wider(names_from = Country,
+#               values_from = HWF_EHF) %>%
+#   mutate(variables = "HWF_EHF", .before = 1)
 
 
 # 6. other Varibles
@@ -105,10 +105,10 @@ var <- c("pop_under5", # missing NI
          "urban_area_pct",
          "NDVI",
          "GDP",
-         "GINI",  # "Argentina", "Colombia", "Peru", "Central America"
+         #"GINI",  # "Argentina", "Colombia", "Peru", "Central America"
          "education",
          "overcrowding_rooms", # missing NI
-         "overcrowding_bedrooms", # mising NI and Peru
+         #"overcrowding_bedrooms", # mising NI and Peru
          "wall_dur",
          "sewage",
          "water_network") 
@@ -131,7 +131,7 @@ table_1g <- bind_rows(result_list)
 
 
 # join tables - HWN as main HW variable
-table1 <- rbind(table_1a, table_1e, table_1f, table_1c, table_1b, table_1g, table_1d)
+table1 <- rbind(table_1a, table_1e, table_1c, table_1b, table_1g, table_1d)
 
 str(table1)
 
@@ -149,9 +149,9 @@ var_labels <- c(
   NDVI                  = "NDVI",
   pop_under5            = "Population < 5 years (%)",
   pop_over65            = "Population ≥65 years (%)",
-  GINI                  = "Gini index",
+  #GINI                  = "Gini index",
   overcrowding_rooms    = "Overcrowding rooms (%)",
-  overcrowding_bedrooms = "Overcrowding bedrooms (%)",
+  #overcrowding_bedrooms = "Overcrowding bedrooms (%)",
   wall_dur              = "Walls durable materials (%)",
   sewage                = "Sewage network connection (%)",
   water_network         = "Water network (%)",
@@ -160,5 +160,3 @@ var_labels <- c(
 
 table1_names <- table1 %>%
   mutate(variables = recode(variables, !!!var_labels))
-
-

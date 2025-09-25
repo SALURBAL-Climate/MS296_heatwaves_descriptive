@@ -317,9 +317,9 @@ plot_trends_by_country <- function(data, country_name, max_cities_per_plot = 20)
       facet_wrap(~ SALID1, ncol = 4) +
       theme_minimal(base_size = 12) +
       labs(
-        title = paste("NHW Trend in", country_name), 
+        title = paste("HWN Trend in", country_name), 
         subtitle = paste("Cities", ((i - 1) * max_cities_per_plot + 1), "to", min(i * max_cities_per_plot, total_cities), "of", total_cities),
-        y = "NHW",
+        y = "HWN",
         x = "YEAR"
       ) +
       theme(
@@ -338,7 +338,7 @@ plot_trends_by_country <- function(data, country_name, max_cities_per_plot = 20)
     n_rows <- ceiling(length(cities_block) / 4)
     
     ggsave(
-      filename = paste0("trend_R95P_", country_name, "_", i, ".png"),
+      filename = paste0("HWN_", country_name, "_", i, ".png"),
       plot = p,
       width = 12,
       height = 2 + 2.5 * n_rows,
@@ -519,7 +519,7 @@ FHW_country <- data %>%
 
 FHW_country
 
-ggsave("FHW_country.png", plot = FHW_country, 
+ggsave("HWF_country.png", plot = FHW_country, 
        dpi = 300, width = 10, height = 7, units = "in", 
        bg = "white")
 
@@ -541,7 +541,7 @@ FHW_clz <- data %>%
     panel.grid.major.x = element_blank(),
     legend.position = "none") +
   xlab("") +
-  ylab("Number of heatwaves")
+  ylab("Frequency of heatwaves")
 
 FHW_clz
 
@@ -569,11 +569,11 @@ FHW_country_YEAR <- data %>%
     strip.text = element_text(size = 10, face = "bold")
   ) +
   xlab("YEAR") +
-  ylab("Number of heatwaves")
+  ylab("Frequency of heatwaves")
 
 FHW_country_YEAR
 
-ggsave("FHW_country_YEAR.png", plot = FHW_country_YEAR, 
+ggsave("HWF_country_YEAR.png", plot = FHW_country_YEAR, 
        dpi = 300, width = 10, height = 7, units = "in", 
        bg = "white")
 
@@ -597,11 +597,11 @@ FHW_CLZ_YEAR <- data %>%
     strip.text = element_text(size = 10, face = "bold")
   ) +
   xlab("YEAR") +
-  ylab("Number of heatwaves")
+  ylab("Frequency of heatwaves")
 
 FHW_CLZ_YEAR
 
-ggsave("FHW_CLZ_YEAR.png", plot = FHW_CLZ_YEAR, 
+ggsave("HWF_CLZ_YEAR.png", plot = FHW_CLZ_YEAR, 
        dpi = 300, width = 10, height = 7, units = "in", 
        bg = "white")
 
@@ -625,12 +625,12 @@ ggplot() +
   coord_cartesian(ylim = c(0, 180)) +
   labs(subtitle = "Black lines = cities | Red line = country average",
        x = "YEAR",
-       y = "FHW") +
+       y = "HWF") +
   theme_bw(base_size = 13) +
   theme(strip.text = element_text(face = "bold"),
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(filename = "lines_FHW_by_country.png",
+ggsave(filename = "lines_HWF_by_country.png",
        width = 12, height = 8, dpi = 300, bg = "white")
 
 
@@ -649,12 +649,12 @@ ggplot() +
   coord_cartesian(ylim = c(0, 180)) +
   labs(subtitle = "Black lines = cities | Red line = CLZ average",
        x = "YEAR",
-       y = "FHW") +
+       y = "HWF") +
   theme_bw(base_size = 13) +
   theme(strip.text = element_text(face = "bold"),
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(filename = "lines_FHW_by_CLZ.png",
+ggsave(filename = "lines_HWF_by_CLZ.png",
        width = 12, height = 8, dpi = 300, bg = "white")
 
 #---------------------------------------------
@@ -669,14 +669,14 @@ FHW_scatter_country <- data %>%
   geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
   facet_wrap(~ Country) +
   coord_cartesian(ylim = c(0, 180)) +  
-  labs(x = "YEAR", y = "FHW") +
+  labs(x = "YEAR", y = "HWF") +
   theme_bw(base_size = 13) +
   theme(
     strip.text = element_text(face = "bold"),
     axis.text.x = element_text(angle = 45, hjust = 1))
 FHW_scatter_country
 
-ggsave("FHW_scatter_country.png", plot = FHW_scatter_country, 
+ggsave("HWF_scatter_country.png", plot = FHW_scatter_country, 
        width = 12, height = 8, dpi = 300, bg = "white")
 
 
@@ -698,7 +698,7 @@ FHW_scatter_all_countries <- data %>%
       "Mexico"  = "#cb181d",
       "Peru"  = "#99000d")) +
   coord_cartesian(ylim = c(0, 180), xlim = c(min(data$YEAR), 2024)) +
-  labs(x = "YEAR", y = "FHW", color = "Country") +
+  labs(x = "YEAR", y = "HWF", color = "Country") +
   theme_classic(base_size = 13) +
   theme(
     legend.position = "bottom",
@@ -706,7 +706,7 @@ FHW_scatter_all_countries <- data %>%
 
 FHW_scatter_all_countries
 
-ggsave("FHW_scatter_all_countries.png", plot = FHW_scatter_all_countries, 
+ggsave("HWF_scatter_all_countries.png", plot = FHW_scatter_all_countries, 
        width = 12, height = 8, dpi = 300, bg = "white")
 
 # 3. CLZ
@@ -717,14 +717,14 @@ FHW_scatter_CLZ <- data %>%
   geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
   facet_wrap(~ CLZ) +
   coord_cartesian(ylim = c(0, 180)) +  
-  labs(x = "YEAR", y = "FHW") +
+  labs(x = "YEAR", y = "HWF") +
   theme_bw(base_size = 13) +
   theme(
     strip.text = element_text(face = "bold"),
     axis.text.x = element_text(angle = 45, hjust = 1))
 FHW_scatter_CLZ
 
-ggsave("FHW_scatter_CLZ.png", plot = FHW_scatter_CLZ, 
+ggsave("HWF_scatter_CLZ.png", plot = FHW_scatter_CLZ, 
        width = 12, height = 8, dpi = 300, bg = "white")
 
 
@@ -751,7 +751,7 @@ FHW_scatter_all_CLZ <- data %>%
 
 FHW_scatter_all_CLZ
 
-ggsave("FHW_scatter_all_CLZ.png", plot = FHW_scatter_all_CLZ, 
+ggsave("HWF_scatter_all_CLZ.png", plot = FHW_scatter_all_CLZ, 
        width = 12, height = 8, dpi = 300, bg = "white")
 
 
@@ -788,9 +788,9 @@ plot_trends_by_country <- function(data, country_name, max_cities_per_plot = 20)
       facet_wrap(~ SALID1, ncol = 4) +
       theme_minimal(base_size = 12) +
       labs(
-        title = paste("FHW Trend in", country_name), 
+        title = paste("HWF Trend in", country_name), 
         subtitle = paste("Cities", ((i - 1) * max_cities_per_plot + 1), "to", min(i * max_cities_per_plot, total_cities), "of", total_cities),
-        y = "FHW",
+        y = "HWF",
         x = "YEAR"
       ) +
       theme(
@@ -809,7 +809,7 @@ plot_trends_by_country <- function(data, country_name, max_cities_per_plot = 20)
     n_rows <- ceiling(length(cities_block) / 4)
     
     ggsave(
-      filename = paste0("trend_R95P_", country_name, "_", i, ".png"),
+      filename = paste0("HWF_", country_name, "_", i, ".png"),
       plot = p,
       width = 12,
       height = 2 + 2.5 * n_rows,

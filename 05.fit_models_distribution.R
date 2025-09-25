@@ -16,7 +16,7 @@ rm(list= ls())
 
 setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Model")
 
-data <- read_parquet("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data/data_hw_pop_ex_INCLUDE_NOUNITCHG_L1AD.parquet")
+data <- read_parquet("data_hw_pop_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
 
 str(data)
 
@@ -65,7 +65,7 @@ model_null_poisson <- glmmTMB(HWN_EHF ~ 1 + (1 | SALID1),
 
 check_overdispersion(model_null_poisson)
 check_zeroinflation(model_null_poisson)
-# simulation_output <- simulateResiduals(model_null_poisson)  %>%  plot()
+simulation_output <- simulateResiduals(model_null_poisson)  %>%  plot()
 # DHARMa::testZeroInflation(model_null_poisson)
 
 
@@ -74,9 +74,10 @@ model_null_nb <- glmmTMB(HWN_EHF ~ 1 + (1 | SALID1),
                                   data = data, 
                                   nbinom2(link = "log"))
 
-check_overdispersion(model_null_nb) # No overdispersion detected.
-check_zeroinflation(model_null_nb) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range 
+check_overdispersion(model_null_nb) 
+check_zeroinflation(model_null_nb)
 simulateResiduals(fittedModel = model_null_nb) %>%  plot()
+DHARMa::testZeroInflation(model_null_nb)
 
 res <- simulateResiduals(fittedModel = model_null_nb)
 testOutliers(res, type = "bootstrap")
@@ -89,9 +90,10 @@ model_zinb <- glmmTMB(HWN_EHF ~ 1 + (1 | SALID1),
                                ziformula = ~1) 
 # family(model_zinb)
 
-check_overdispersion(model_zinb) # No overdispersion detected.
-check_zeroinflation(model_zinb) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range 
+check_overdispersion(model_zinb) 
+check_zeroinflation(model_zinb)
 simulation_output <- simulateResiduals(model_zinb)  %>%  plot()
+testOutliers(model_zinb, type = "bootstrap")
 DHARMa::testZeroInflation(model_zinb)
 
 # summary (model_zinb)
@@ -99,33 +101,24 @@ DHARMa::testZeroInflation(model_zinb)
 # tidy(model_zinb)
 
 # compare models
-AIC(model_null_poisson, model_null_nb, model_zinb)
-compare_performance(model_null_poisson, model_null_nb, model_zinb, rank = TRUE)
+AIC(model_null_nb, model_zinb)
+compare_performance(model_null_nb, model_zinb, rank = TRUE)
 
 anova(model_null_nb, model_zinb, test = "LRT")
 
 # Best adjustment is the Negative binomial zero-inflate
 
 #---------- cities and countries
-# Poisson distribution
-model_null_poisson_c <- glmmTMB(HWN_EHF ~ 1 + (1 | Country/SALID1), 
-                                data = data, 
-                                family = poisson(link = "log"))
-
-# check_overdispersion(model_null_poisson_c)
-# check_zeroinflation(model_null_poisson_c)
-# simulation_output <- simulateResiduals(model_null_poisson_c)  %>%  plot()
-# DHARMa::testZeroInflation(model_null_poisson_c)
-
 
 # Negative binomial
 model_null_nb_c <- glmmTMB(HWN_EHF ~ 1 + (1 | Country/SALID1), 
                            data = data, 
                            nbinom2(link = "log"))
 
-check_overdispersion(model_null_nb_c) #No overdispersion detected.
-check_zeroinflation(model_null_nb_c) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range 
+check_overdispersion(model_null_nb_c) 
+check_zeroinflation(model_null_nb_c)
 simulateResiduals(fittedModel = model_null_nb_c) %>%  plot()
+DHARMa::testZeroInflation(model_null_nb_c)
 
 # res <- simulateResiduals(fittedModel = model_null_nb)
 # testOutliers(res, type = "bootstrap")
@@ -137,22 +130,18 @@ model_zinb_c <- glmmTMB(HWN_EHF ~ 1 + (1 | Country/SALID1),
                         family = nbinom2,
                         ziformula = ~1) 
 
-check_overdispersion(model_zinb_c) # No overdispersion detected.
-check_zeroinflation(model_zinb_c) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range 
+check_overdispersion(model_zinb_c)
+check_zeroinflation(model_zinb_c) 
 simulation_output <- simulateResiduals(model_zinb_c)  %>%  plot()
 DHARMa::testZeroInflation(model_zinb_c)
 
+AIC(model_null_nb_c, model_zinb_c)
 
-AIC(model_null_poisson_c, model_null_nb_c, model_zinb_c)
-# df      AIC
-# model_null_poisson_c  3 40839.22
-# model_null_nb_c       4 39403.93
-# model_zinb_c          5 39391.79
+compare_performance(model_null_nb_c, model_zinb_c, rank = TRUE)
 
-compare_performance(model_null_poisson_c, model_null_nb_c, model_zinb_c, rank = TRUE)
+anova(model_null_nb_c, model_zinb_c, test = "LRT")
 
 # Best adjustment is the Negative binomial zero-inflate
-
 
 
 #---------------------------------------------
@@ -197,7 +186,7 @@ model_null_poisson_F <- glmmTMB(HWF_EHF ~ 1 + (1 | SALID1),
 
 check_overdispersion(model_null_poisson_F)
 check_zeroinflation(model_null_poisson_F)
-# simulation_output <- simulateResiduals(model_null_poisson_F)  %>%  plot()
+simulation_output <- simulateResiduals(model_null_poisson_F)  %>%  plot()
 # DHARMa::testZeroInflation(model_null_poisson_F)
 
 
@@ -206,9 +195,10 @@ model_null_nb_F <- glmmTMB(HWF_EHF ~ 1 + (1 | SALID1),
                            data = data, 
                            nbinom2(link = "log"))
 
-check_overdispersion(model_null_nb_F) # Underdispersion detected  
-check_zeroinflation(model_null_nb_F) # Model is underfitting zeros (probable zero-inflation) 
+check_overdispersion(model_null_nb_F) 
+check_zeroinflation(model_null_nb_F)
 simulation_output <- simulateResiduals(model_null_nb_F)  %>%  plot()
+testOutliers(model_null_nb_F, type = "bootstrap")
 DHARMa::testZeroInflation(model_null_nb_F)
 
 # Negative binomial zero-inflated
@@ -217,38 +207,30 @@ model_zinb_F <- glmmTMB(HWF_EHF ~ 1 + (1 | SALID1),
                         family = nbinom2,
                         ziformula = ~1) 
 
-check_overdispersion(model_zinb_F) # a bit of Overdispersion
-check_zeroinflation(model_zinb_F) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range
+check_overdispersion(model_zinb_F)
+check_zeroinflation(model_zinb_F) 
 simulation_output <- simulateResiduals(model_zinb_F)  %>%  plot()
 DHARMa::testZeroInflation(model_zinb_F)
 
 # compare models
-AIC(model_null_poisson_F, model_null_nb_F, model_zinb_F)
-compare_performance(model_null_poisson_F, model_null_nb_F, model_zinb_F , rank = TRUE)
+AIC(model_null_nb_F, model_zinb_F)
+anova(model_null_nb_F, model_zinb_F, test = "LRT")
+
+compare_performance(model_null_nb_F, model_zinb_F , rank = TRUE)
 
 # Best adjustment is the Negative binomial zero-inflate
 
 #---------- cities and countries
-# Poisson distribution
-model_null_poisson_F_c <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
-                                  data = data, 
-                                  family = poisson(link = "log"))
-
-check_overdispersion(model_null_poisson_F_c)
-check_zeroinflation(model_null_poisson_F_c)
-simulation_output <- simulateResiduals(model_null_poisson_F_c)  %>%  plot()
-DHARMa::testZeroInflation(model_null_poisson_F_c)
-
-
 # Negative binomial
 model_null_nb_F_c <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
                              data = data, 
                              nbinom2(link = "log"))
 
-check_overdispersion(model_null_nb_F_c) # Underdispersion detected.
-check_zeroinflation(model_null_nb_F_c) # Model is underfitting zeros (probable zero-inflation) 
+check_overdispersion(model_null_nb_F_c) 
+check_zeroinflation(model_null_nb_F_c)
 simulateResiduals(fittedModel = model_null_nb_F_c) %>%  plot()
-
+testOutliers(model_null_nb_F_c, type = "bootstrap")
+DHARMa::testZeroInflation(model_null_nb_F_c)
 
 # Negative binomial zero-inflated
 model_zinb_F_c <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
@@ -264,13 +246,10 @@ DHARMa::testZeroInflation(model_zinb_F_c)
 
 
 
-AIC(model_null_poisson_F_c, model_null_nb_F_c, model_zinb_F_c)
-# df       AIC
-# model_null_poisson_F_c  3 190449.42
-# model_null_nb_F_c       4  75821.24
-# model_zinb_F_c          5  74098.65
-
-compare_performance(model_null_poisson_F_c, model_null_nb_F_c, model_zinb_F_c, rank = TRUE)
+AIC(model_null_nb_F_c, model_zinb_F_c)
 anova(model_null_nb_F_c, model_zinb_F_c, test = "LRT")
+
+compare_performance(model_null_nb_F_c, model_zinb_F_c, rank = TRUE)
+
 
 # Best adjustment is the Negative binomial zero-inflate

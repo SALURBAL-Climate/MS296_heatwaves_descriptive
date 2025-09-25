@@ -13,7 +13,7 @@ rm(list= ls())
 
 setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data")
 
-data <- read_parquet("data_hw_INCLUDE_NOUNITCHG_L1AD.parquet")
+data <- read_parquet("data_hw_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
 
 glimpse(data)
 
@@ -33,5 +33,5 @@ pop_ex_hw <- data %>%
     person_days_exposed = total_pop * HWF_EHF)         # Person-days of heatwave exposure
 
 # 2. export 
-write_parquet(pop_ex_hw, "data_hw_pop_ex_INCLUDE_NOUNITCHG_L1AD.parquet")
+write_parquet(pop_ex_hw, "data_hw_pop_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
 

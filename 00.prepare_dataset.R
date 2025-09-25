@@ -118,14 +118,20 @@ unique(data_final$SALID1[is.na(data_final$overcrowding_bedrooms)]) #  [1] 105101
 # 105108 105109 105110 105111 105112 105113 105114 105115 105116 105117 105118 105119
 #[20] 105120 105121 105122 105123 205101 205102 205103 205104 205105
 
-# drop GINI and overcrowding_bedrooms ??
+# drop GINI and overcrowding_bedrooms
+# drop NI 
 
 # # exclude the Known boundary change indicator
 # INCLUDE_NOUNITCHG_L1AD
-data_final2 <- data_final %>% filter(INCLUDE_NOUNITCHG_L1AD == 1)
-length(unique(data_final2$SALID1))
-write_parquet(data_final2, "data_hw_INCLUDE_NOUNITCHG_L1AD.parquet")
+data_final_hw <- data_final %>% 
+  filter(INCLUDE_NOUNITCHG_L1AD == 1) %>% 
+  filter(ISO2 != "NI")
+
+length(unique(data_final_hw$SALID1))
+colSums(is.na(data_final_hw)) > 0
 
 # export final dataset
+write_parquet(data_final_hw, "data_hw_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
+
 # write_parquet(data_final, "data_hw.parquet")
 
