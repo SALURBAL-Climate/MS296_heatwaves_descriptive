@@ -16,7 +16,7 @@ rm(list= ls())
 
 setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Model")
 
-data <- read_parquet("data_hw_pop_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
+data <- read_parquet("data_final.parquet")
 
 str(data)
 

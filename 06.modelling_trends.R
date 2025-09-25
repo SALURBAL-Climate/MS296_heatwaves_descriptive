@@ -12,12 +12,15 @@ library(tidyr); library(tidyverse); library(lme4)
 library(ggplot2); library(ggeffects); library(patchwork)
 library(performance); library(DHARMa); library(broom.mixed)
 library(splines); library(broom.mixed); library(report)
+library(sjPlot)
 
 rm(list= ls())
 
 setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Model")
 
-data <- read_parquet("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data/data_hw_pop_ex_INCLUDE_NOUNITCHG_L1AD.parquet")
+data <- read_parquet("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data/data_final.parquet")
+
+length(unique(data$SALID1))
 
 str(data)
 
@@ -67,6 +70,7 @@ DHARMa::testZeroInflation(model_null_city)
 VarCorr(model_null_city)
 print(VarCorr(model_null_city), comp="Variance") # 0.009375
 
+tab_model(model_null_city)
 
 # 2. Cities + Country 
 model_null_city_country <- glmmTMB(HWN_EHF ~ 1 + (1 | Country/SALID1), 
@@ -83,6 +87,8 @@ DHARMa::testZeroInflation(model_null_city_country)
 
 VarCorr(model_null_city_country)
 print(VarCorr(model_null_city_country), comp="Variance")
+
+tab_model(model_null_city_country)
 
 
 # 3. Compare models

@@ -33,5 +33,5 @@ pop_ex_hw <- data %>%
     person_days_exposed = total_pop * HWF_EHF)         # Person-days of heatwave exposure
 
 # 2. export 
-write_parquet(pop_ex_hw, "data_hw_pop_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
+write_parquet(pop_ex_hw, "data_final.parquet")
 

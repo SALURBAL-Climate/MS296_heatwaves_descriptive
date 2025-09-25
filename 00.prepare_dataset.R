@@ -128,6 +128,7 @@ data_final_hw <- data_final %>%
   filter(ISO2 != "NI")
 
 length(unique(data_final_hw$SALID1))
+length(unique(data_final_hw$Country))
 colSums(is.na(data_final_hw)) > 0
 
 # export final dataset
