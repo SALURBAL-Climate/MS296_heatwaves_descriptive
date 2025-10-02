@@ -122,22 +122,9 @@ print(icc_vals)
 report(model_YEAR_fixed_center)
 
 # ------------------------------------------------
-# HWN - YEAR - random intercept and random slope
+# HWN - YEAR - random slope
 # ------------------------------------------------
-# 1. random intercept for YEAR
-model_YEAR_random_inter <- glmmTMB(HWN_EHF ~ 1 + (1 | YEAR_c) + (1 | Country/SALID1), 
-                                   data = data,
-                                   family = nbinom2,
-                                   ziformula = ~1)
-summary(model_YEAR_random_inter)
-check_zeroinflation(model_YEAR_random_inter)
-check_overdispersion(model_YEAR_random_inter)
-simulation_output <- simulateResiduals(model_YEAR_random_inter)  %>%  plot()
-
-report(model_YEAR_random_inter)
-
-
-# 2. YEAR - random slope
+# 1. YEAR - random slope
 # (YEAR_c | Country/SALID1) same as (1 + YEAR_c).
 model_radom_slope_YEAR <- glmmTMB(HWN_EHF ~ YEAR_c + (YEAR_c | Country/SALID1), 
                                   data = data, 
@@ -247,8 +234,8 @@ for (c in countries) {
 #   theme_minimal()
 
 # 3. compare models
-AIC(model_YEAR_random_inter, model_radom_slope_YEAR)
-anova(model_YEAR_random_inter, model_radom_slope_YEAR, test = "LRT")
+AIC(model_YEAR_fixed_center, model_radom_slope_YEAR)
+anova(model_YEAR_fixed_center, model_radom_slope_YEAR, test = "LRT")
 
 
 #---------------------------------------------------- HWF ----------------------------------------------------------------------------------------
@@ -446,4 +433,5 @@ for (c in countries) {
 #     title = "Tendência prevista por cidade (random slopes)"
 #   ) +
 #   theme_minimal()
+
 
