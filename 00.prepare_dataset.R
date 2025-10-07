@@ -134,5 +134,7 @@ colSums(is.na(data_final_hw)) > 0
 # export final dataset
 write_parquet(data_final_hw, "data_hw_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
 
-# write_parquet(data_final, "data_hw.parquet")
+# data_ds <- data_final %>% 
+#   filter(ISO2 != "NI")
+# write_parquet(data_ds, "data_hw.parquet")
 

@@ -8,13 +8,13 @@
 ##################################################################
 
 library(tidyverse); library(dplyr); library(arrow)
-library(glue); library(rlang)
+library(glue); library(rlang); library(writexl)
 
 rm(list= ls())
 
 setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data")
 
-data <- read_parquet("ddata_final.parquet")
+data <- read_parquet("data_final.parquet")
 
 glimpse(data)
 
@@ -243,3 +243,6 @@ table2_names <- table2 %>%
 
 # arrange columns
 table2_names <- table2_names %>% select(variables, Q1, Q2, Q3, Q4)
+
+# export
+write_xlsx(table2_names, "C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Tables/table_2_pop_ex.xlsx")

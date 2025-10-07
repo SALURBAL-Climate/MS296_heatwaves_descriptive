@@ -8,7 +8,7 @@
 ##################################################################
 
 library(tidyverse); library(dplyr); library(arrow)
-library(glue); library(rlang)
+library(glue); library(rlang); library(writexl)
 
 rm(list= ls())
 
@@ -86,15 +86,15 @@ table_1e <- data %>%
   mutate(variables = "HWN_EHF", .before = 1)
 
 # # 6. HWF - check to add or not
-# table_1f <- data %>% 
-#   summarize(mean_HWF_EHF = mean(HWF_EHF, na.rm = TRUE), .by = c(Country, SALID1)) %>%
-#   summarize(HWF_EHF = glue("{med} ({lower}, {upper})",
-#                    med   = round(median(mean_HWF_EHF), 0),
-#                    lower = round(quantile(mean_HWF_EHF, .1), 0),
-#                    upper = round(quantile(mean_HWF_EHF, .9), 0)), .by = Country) %>%
-#   pivot_wider(names_from = Country,
-#               values_from = HWF_EHF) %>%
-#   mutate(variables = "HWF_EHF", .before = 1)
+table_1f <- data %>%
+  summarize(mean_HWF_EHF = mean(HWF_EHF, na.rm = TRUE), .by = c(Country, SALID1)) %>%
+  summarize(HWF_EHF = glue("{med} ({lower}, {upper})",
+                   med   = round(median(mean_HWF_EHF), 0),
+                   lower = round(quantile(mean_HWF_EHF, .1), 0),
+                   upper = round(quantile(mean_HWF_EHF, .9), 0)), .by = Country) %>%
+  pivot_wider(names_from = Country,
+              values_from = HWF_EHF) %>%
+  mutate(variables = "HWF_EHF", .before = 1)
 
 
 # 6. other Varibles
@@ -109,7 +109,7 @@ var <- c("pop_under5", # missing NI
          "education",
          "overcrowding_rooms", # missing NI
          #"overcrowding_bedrooms", # mising NI and Peru
-         "wall_dur",
+         #"wall_dur",
          "sewage",
          "water_network") 
 
@@ -131,7 +131,7 @@ table_1g <- bind_rows(result_list)
 
 
 # join tables - HWN as main HW variable
-table1 <- rbind(table_1a, table_1e, table_1c, table_1b, table_1g, table_1d)
+table1 <- rbind(table_1a, table_1e, table_1f, table_1c, table_1b, table_1g, table_1d)
 
 str(table1)
 
@@ -152,11 +152,12 @@ var_labels <- c(
   #GINI                  = "Gini index",
   overcrowding_rooms    = "Overcrowding rooms (%)",
   #overcrowding_bedrooms = "Overcrowding bedrooms (%)",
-  wall_dur              = "Walls durable materials (%)",
+  #wall_dur              = "Walls durable materials (%)",
   sewage                = "Sewage network connection (%)",
   water_network         = "Water network (%)",
-  education             = "Completed primary education (%)"
-)
+  education             = "Completed primary education (%)")
 
 table1_names <- table1 %>%
   mutate(variables = recode(variables, !!!var_labels))
+
+write_xlsx(table1_names, "C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Tables/table_1.xlsx")

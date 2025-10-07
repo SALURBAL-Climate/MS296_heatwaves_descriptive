@@ -16,7 +16,7 @@ rm(list= ls())
 
 setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Model")
 
-data <- read_parquet("data_final.parquet")
+data <- read_parquet("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296/Data/data_final.parquet")
 
 str(data)
 
@@ -32,12 +32,9 @@ hist(data$HWN_EHF)
 
 #Check zero
 table(data$HWN_EHF == 0)
-# FALSE  TRUE 
-# 8204  1003
 
-mean(data$HWN_EHF) # 3.09
-var(data$HWN_EHF) # 5.4
-
+mean(data$HWN_EHF)
+var(data$HWN_EHF)
 
 # ggplot(data, aes(x = HWN_EHF)) +
 #   geom_histogram(aes(y = after_stat(density)), binwidth = 1) +
@@ -57,11 +54,12 @@ var(data$HWN_EHF) # 5.4
 #   theme_minimal()
 
 
-#----------------------------- Fit distribution
-# Poisson distribution
+#---  Fit distribution
+# 1. Cities - Poisson distribution
 model_null_poisson <- glmmTMB(HWN_EHF ~ 1 + (1 | SALID1), 
                                data = data, 
                                family = poisson(link = "log"))
+summary(model_null_poisson)
 
 check_overdispersion(model_null_poisson)
 check_zeroinflation(model_null_poisson)
@@ -69,80 +67,41 @@ simulation_output <- simulateResiduals(model_null_poisson)  %>%  plot()
 # DHARMa::testZeroInflation(model_null_poisson)
 
 
-# Negative binomial
+
+# 2. Cities - Negative binomial
 model_null_nb <- glmmTMB(HWN_EHF ~ 1 + (1 | SALID1), 
                                   data = data, 
                                   nbinom2(link = "log"))
+summary (model_null_nb)
 
 check_overdispersion(model_null_nb) 
 check_zeroinflation(model_null_nb)
 simulateResiduals(fittedModel = model_null_nb) %>%  plot()
 DHARMa::testZeroInflation(model_null_nb)
 
-res <- simulateResiduals(fittedModel = model_null_nb)
-testOutliers(res, type = "bootstrap")
+# res <- simulateResiduals(fittedModel = model_null_nb)
+# testOutliers(res, type = "bootstrap")
 
 
-# Negative binomial zero-inflated
-model_zinb <- glmmTMB(HWN_EHF ~ 1 + (1 | SALID1), 
-                               data = data, 
-                               family = nbinom2,
-                               ziformula = ~1) 
-# family(model_zinb)
-
-check_overdispersion(model_zinb) 
-check_zeroinflation(model_zinb)
-simulation_output <- simulateResiduals(model_zinb)  %>%  plot()
-testOutliers(model_zinb, type = "bootstrap")
-DHARMa::testZeroInflation(model_zinb)
-
-# summary (model_zinb)
-# glance(model_zinb)
-# tidy(model_zinb)
-
-# compare models
-AIC(model_null_nb, model_zinb)
-compare_performance(model_null_nb, model_zinb, rank = TRUE)
-
-anova(model_null_nb, model_zinb, test = "LRT")
-
-# Best adjustment is the Negative binomial zero-inflate
-
-#---------- cities and countries
-
-# Negative binomial
+# 3. Country/cities - Negative binomial
 model_null_nb_c <- glmmTMB(HWN_EHF ~ 1 + (1 | Country/SALID1), 
                            data = data, 
                            nbinom2(link = "log"))
+summary(model_null_nb_c)
 
 check_overdispersion(model_null_nb_c) 
 check_zeroinflation(model_null_nb_c)
 simulateResiduals(fittedModel = model_null_nb_c) %>%  plot()
 DHARMa::testZeroInflation(model_null_nb_c)
 
-# res <- simulateResiduals(fittedModel = model_null_nb)
-# testOutliers(res, type = "bootstrap")
+# 4. Compare models
+AIC(model_null_nb, model_null_nb_c)
 
+compare_performance(model_null_nb, model_null_nb_c, rank = TRUE)
 
-# Negative binomial zero-inflated
-model_zinb_c <- glmmTMB(HWN_EHF ~ 1 + (1 | Country/SALID1), 
-                        data = data, 
-                        family = nbinom2,
-                        ziformula = ~1) 
+anova(model_null_nb, model_null_nb_c, test = "LRT")
 
-check_overdispersion(model_zinb_c)
-check_zeroinflation(model_zinb_c) 
-simulation_output <- simulateResiduals(model_zinb_c)  %>%  plot()
-DHARMa::testZeroInflation(model_zinb_c)
-
-AIC(model_null_nb_c, model_zinb_c)
-
-compare_performance(model_null_nb_c, model_zinb_c, rank = TRUE)
-
-anova(model_null_nb_c, model_zinb_c, test = "LRT")
-
-# Best adjustment is the Negative binomial zero-inflate
-
+# Best nb Countries/cities
 
 #---------------------------------------------
 # HWF frequency - heatwave days
@@ -153,11 +112,9 @@ hist(data$HWF_EHF)
 
 #Check zero
 table(data$HWF_EHF == 0)
-# FALSE  TRUE 
-# 8218   989 
 
-mean(data$HWF_EHF) # 21.36
-var(data$HWF_EHF) # 366.9614
+mean(data$HWF_EHF) 
+var(data$HWF_EHF)
 
 
 # ggplot(data, aes(x = HWF_EHF)) +
@@ -178,11 +135,12 @@ var(data$HWF_EHF) # 366.9614
 #   theme_minimal()
 
 
-#----------------------------- Fit distribution
-# Poisson distribution
+#---  Fit distribution
+# 1. Cities - Poisson distribution
 model_null_poisson_F <- glmmTMB(HWF_EHF ~ 1 + (1 | SALID1), 
-                                data = data, 
-                                family = poisson(link = "log"))
+                              data = data, 
+                              family = poisson(link = "log"))
+summary(model_null_poisson_F)
 
 check_overdispersion(model_null_poisson_F)
 check_zeroinflation(model_null_poisson_F)
@@ -190,66 +148,47 @@ simulation_output <- simulateResiduals(model_null_poisson_F)  %>%  plot()
 # DHARMa::testZeroInflation(model_null_poisson_F)
 
 
-# Negative binomial
+# 2. Cities - Negative binomial
 model_null_nb_F <- glmmTMB(HWF_EHF ~ 1 + (1 | SALID1), 
-                           data = data, 
-                           nbinom2(link = "log"))
+                         data = data, 
+                         nbinom2(link = "log"))
+summary(model_null_nb_F)
 
 check_overdispersion(model_null_nb_F) 
 check_zeroinflation(model_null_nb_F)
-simulation_output <- simulateResiduals(model_null_nb_F)  %>%  plot()
-testOutliers(model_null_nb_F, type = "bootstrap")
+simulateResiduals(fittedModel = model_null_nb_F) %>%  plot()
 DHARMa::testZeroInflation(model_null_nb_F)
 
-# Negative binomial zero-inflated
-model_zinb_F <- glmmTMB(HWF_EHF ~ 1 + (1 | SALID1), 
-                        data = data, 
-                        family = nbinom2,
-                        ziformula = ~1) 
-
-check_overdispersion(model_zinb_F)
-check_zeroinflation(model_zinb_F) 
-simulation_output <- simulateResiduals(model_zinb_F)  %>%  plot()
-DHARMa::testZeroInflation(model_zinb_F)
-
-# compare models
-AIC(model_null_nb_F, model_zinb_F)
-anova(model_null_nb_F, model_zinb_F, test = "LRT")
-
-compare_performance(model_null_nb_F, model_zinb_F , rank = TRUE)
-
-# Best adjustment is the Negative binomial zero-inflate
-
-#---------- cities and countries
-# Negative binomial
-model_null_nb_F_c <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
-                             data = data, 
-                             nbinom2(link = "log"))
-
-check_overdispersion(model_null_nb_F_c) 
-check_zeroinflation(model_null_nb_F_c)
-simulateResiduals(fittedModel = model_null_nb_F_c) %>%  plot()
-testOutliers(model_null_nb_F_c, type = "bootstrap")
-DHARMa::testZeroInflation(model_null_nb_F_c)
-
-# Negative binomial zero-inflated
-model_zinb_F_c <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
-                          data = data, 
-                          family = nbinom2,
-                          ziformula = ~1) 
+# res <- simulateResiduals(fittedModel = model_null_nb_F)
+# testOutliers(res, type = "bootstrap")
 
 
-check_overdispersion(model_zinb_F_c) # No overdispersion detected.
-check_zeroinflation(model_zinb_F_c) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range 
-simulation_output <- simulateResiduals(model_zinb_F_c)  %>%  plot()
-DHARMa::testZeroInflation(model_zinb_F_c) 
+# 3. Country/cities - Negative binomial
+model_null_nb_c_F <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
+                           data = data, 
+                           nbinom2(link = "log"))
+summary(model_null_nb_c_F)
+
+check_overdispersion(model_null_nb_c_F) 
+check_zeroinflation(model_null_nb_c_F)
+simulateResiduals(fittedModel = model_null_nb_c_F) %>%  plot()
+DHARMa::testZeroInflation(model_null_nb_c_F)
 
 
+# 4. Compare models
+AIC(model_null_nb_F, model_null_nb_c_F)
 
-AIC(model_null_nb_F_c, model_zinb_F_c)
-anova(model_null_nb_F_c, model_zinb_F_c, test = "LRT")
+compare_performance(model_null_nb_F, model_null_nb_c_F, rank = TRUE)
 
-compare_performance(model_null_nb_F_c, model_zinb_F_c, rank = TRUE)
+anova(model_null_nb_F, model_null_nb_c_F, test = "LRT")
 
+# Best model is the nb countries/cities
 
-# Best adjustment is the Negative binomial zero-inflate
+# tryig nb1
+model_null_nb_c_F1 <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
+                              data = data, 
+                              nbinom1(link = "log"))
+summary(model_null_nb_c_F1)
+simulateResiduals(fittedModel = model_null_nb_c_F1) %>%  plot()
+
+# better fit nb2
