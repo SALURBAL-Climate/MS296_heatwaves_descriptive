@@ -57,8 +57,8 @@ var(data$HWN_EHF)
 #---  Fit distribution
 # 1. Cities - Poisson distribution
 model_null_poisson <- glmmTMB(HWN_EHF ~ 1 + (1 | SALID1), 
-                               data = data, 
-                               family = poisson(link = "log"))
+                              data = data, 
+                              family = nbinom2(link = "log"))
 summary(model_null_poisson)
 
 check_overdispersion(model_null_poisson)
@@ -70,8 +70,8 @@ simulation_output <- simulateResiduals(model_null_poisson)  %>%  plot()
 
 # 2. Cities - Negative binomial
 model_null_nb <- glmmTMB(HWN_EHF ~ 1 + (1 | SALID1), 
-                                  data = data, 
-                                  nbinom2(link = "log"))
+                         data = data, 
+                         family = nbinom2(link = "log"))
 summary (model_null_nb)
 
 check_overdispersion(model_null_nb) 
@@ -86,7 +86,7 @@ DHARMa::testZeroInflation(model_null_nb)
 # 3. Country/cities - Negative binomial
 model_null_nb_c <- glmmTMB(HWN_EHF ~ 1 + (1 | Country/SALID1), 
                            data = data, 
-                           nbinom2(link = "log"))
+                           family = nbinom2(link = "log"))
 summary(model_null_nb_c)
 
 check_overdispersion(model_null_nb_c) 
@@ -138,8 +138,8 @@ var(data$HWF_EHF)
 #---  Fit distribution
 # 1. Cities - Poisson distribution
 model_null_poisson_F <- glmmTMB(HWF_EHF ~ 1 + (1 | SALID1), 
-                              data = data, 
-                              family = poisson(link = "log"))
+                                data = data, 
+                                family = nbinom2(link = "log"))
 summary(model_null_poisson_F)
 
 check_overdispersion(model_null_poisson_F)
@@ -150,8 +150,8 @@ simulation_output <- simulateResiduals(model_null_poisson_F)  %>%  plot()
 
 # 2. Cities - Negative binomial
 model_null_nb_F <- glmmTMB(HWF_EHF ~ 1 + (1 | SALID1), 
-                         data = data, 
-                         nbinom2(link = "log"))
+                           data = data, 
+                           family = nbinom2(link = "log"))
 summary(model_null_nb_F)
 
 check_overdispersion(model_null_nb_F) 
@@ -165,8 +165,8 @@ DHARMa::testZeroInflation(model_null_nb_F)
 
 # 3. Country/cities - Negative binomial
 model_null_nb_c_F <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
-                           data = data, 
-                           nbinom2(link = "log"))
+                             data = data, 
+                             family = nbinom2(link = "log"))
 summary(model_null_nb_c_F)
 
 check_overdispersion(model_null_nb_c_F) 
@@ -187,7 +187,7 @@ anova(model_null_nb_F, model_null_nb_c_F, test = "LRT")
 # tryig nb1
 model_null_nb_c_F1 <- glmmTMB(HWF_EHF ~ 1 + (1 | Country/SALID1), 
                               data = data, 
-                              nbinom1(link = "log"))
+                              family = nbinom2(link = "log"))
 summary(model_null_nb_c_F1)
 simulateResiduals(fittedModel = model_null_nb_c_F1) %>%  plot()
 

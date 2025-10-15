@@ -34,6 +34,7 @@ data_hwp <- data2 %>% select(SALID1, year,
 
 data <- data %>% left_join(data_hwp, by = c("SALID1" = "SALID1", "YEAR" = "year"))
 
+
 # ------------------------------------------
 # HWN -  YEAR as linear 
 # ------------------------------------------
@@ -54,23 +55,23 @@ hw_vars <- c("HWN_EHF", "HWN_90P_2d_L1AD_tpw", "HWN_90P_3d_L1AD_tpw", "HWN_90P_4
 
 # loop para rodar modelos
 model_list <- lapply(hw_vars, function(var) {
-  f <- reformulate("YEAR_dec + (1 | Country/SALID1)", response = var)
-  glmmTMB(f, data = data, family = nbinom2)
+  formula_mod <- reformulate("YEAR_dec + (1 | Country/SALID1)", response = var)
+  glmmTMB(formula_mod, data = data, family = nbinom2(link = "log"))
 })
 names(model_list) <- hw_vars
 
-# extrair resultados do YEAR_dec + ICC
+# Extract results
 results <- lapply(names(model_list), function(name) {
   mod <- model_list[[name]]
   
-  # Coef YEAR_dec
+  # Coef (fixed YEAR_dec)
   coefs <- broom.mixed::tidy(mod, effects = "fixed", conf.int = TRUE)
   year_row <- coefs[coefs$term == "YEAR_dec", ]
   year_row$variable <- name
   
   # ICC
   icc_val <- tryCatch({
-    icc(mod)$ICC_adjusted # do pacote performance
+    performance::icc(mod)$ICC_adjusted
   }, error = function(e) NA)
   
   year_row$ICC <- icc_val
@@ -79,12 +80,24 @@ results <- lapply(names(model_list), function(name) {
 
 results_df <- do.call(rbind, results)
 
-results_df <- results_df[, c("variable", "estimate", "conf.low", "conf.high", 
-                             "std.error", "p.value", "ICC")]
+results_df <- results_df %>%
+  mutate(
+    perc_change = (exp(estimate) - 1) * 100,
+    perc_low = (exp(conf.low) - 1) * 100,
+    perc_high = (exp(conf.high) - 1) * 100
+  ) %>%
+  select(variable, estimate, conf.low, conf.high, std.error, p.value,
+         perc_change, perc_low, perc_high, ICC)
 
-results_df
-# fixef(model_HWN_90P_2d_L1AD_tpw)$cond["YEAR_dec"]
-# summary(model_95_4)$coefficients$cond["YEAR_dec", "Pr(>|z|)"] # p-value
+print(results_df, digits = 3)
+
+# check 
+# model_YEAR_HWN_97.5P_4d_L1AD_tpw <- glmmTMB(HWN_97.5P_4d_L1AD_tpw ~ YEAR_dec + (1 | Country/SALID1), 
+#                                 data = data, 
+#                                 family = nbinom2(link = "log"))
+# 
+# fixef(model_YEAR_HWN_97.5P_4d_L1AD_tpw)$cond["YEAR_dec"] # 0.9008551
+# tab_model(model_YEAR_HWN_97.5P_4d_L1AD_tpw)
 
 # residuals
 # 90P
@@ -103,7 +116,7 @@ simulation_output <- simulateResiduals(model_list[["HWN_97.5P_3d_L1AD_tpw"]]) %>
 simulation_output <- simulateResiduals(model_list[["HWN_97.5P_4d_L1AD_tpw"]]) %>%  plot()
 
 # export
-write_xlsx(results_df, "trends_decade_HWN.xlsx")
+write_xlsx(results_df, "HWN_trend_results.xlsx")
 
 #---------------------------------------------------- HWF ----------------------------------------------------------------------------------------
 
@@ -129,36 +142,50 @@ hwf_vars <- c("HWF_EHF", "HWF_90P_2d_L1AD_tpw", "HWF_90P_3d_L1AD_tpw", "HWF_90P_
               "HWF_97.5P_2d_L1AD_tpw", "HWF_97.5P_3d_L1AD_tpw", "HWF_97.5P_4d_L1AD_tpw")
 
 # loop para rodar modelos
-model_list <- lapply(hwf_vars, function(var) {
-  f <- reformulate("YEAR_dec + (1 | Country/SALID1)", response = var)
-  glmmTMB(f, data = data, family = nbinom2)
+model_list_f <- lapply(hwf_vars, function(var) {
+  formula_mod <- reformulate("YEAR_dec + (1 | Country/SALID1)", response = var)
+  glmmTMB(formula_mod, data = data, family = nbinom2(link = "log"))
 })
-names(model_list) <- hwf_vars
+names(model_list_f) <- hwf_vars
 
-# extrair resultados do YEAR_dec + ICC
-results <- lapply(names(model_list), function(name) {
-  mod <- model_list[[name]]
+# Extract results
+results_f <- lapply(names(model_list_f), function(name) {
+  mod <- model_list_f[[name]]
   
-  # Coef YEAR_dec
+  # Coef (fixed YEAR_dec)
   coefs <- broom.mixed::tidy(mod, effects = "fixed", conf.int = TRUE)
   year_row <- coefs[coefs$term == "YEAR_dec", ]
   year_row$variable <- name
   
   # ICC
   icc_val <- tryCatch({
-    icc(mod)$ICC_adjusted # do pacote performance
+    performance::icc(mod)$ICC_adjusted
   }, error = function(e) NA)
   
   year_row$ICC <- icc_val
   year_row
 })
 
-results_df_f <- do.call(rbind, results)
+results_df_f <- do.call(rbind, results_f)
 
-results_df_f <- results_df_f[, c("variable", "estimate", "conf.low", "conf.high", 
-                                 "std.error", "p.value", "ICC")]
+results_df_f <- results_df_f %>%
+  mutate(
+    perc_change = (exp(estimate) - 1) * 100,
+    perc_low = (exp(conf.low) - 1) * 100,
+    perc_high = (exp(conf.high) - 1) * 100
+  ) %>%
+  select(variable, estimate, conf.low, conf.high, std.error, p.value,
+         perc_change, perc_low, perc_high, ICC)
 
-results_df_f
+print(results_df_f, digits = 3)
+
+# check 
+# model_YEAR_HWF_97.5P_4d_L1AD_tpw <- glmmTMB(HWF_97.5P_4d_L1AD_tpw ~ YEAR_dec + (1 | Country/SALID1),
+#                                 data = data,
+#                                 family = nbinom2(link = "log"))
+# 
+# fixef(model_YEAR_HWF_97.5P_4d_L1AD_tpw)$cond["YEAR_dec"] #1.018926 
+# tab_model(model_YEAR_HWF_97.5P_4d_L1AD_tpw)
 
 # residuals
 # 90P
@@ -177,4 +204,4 @@ simulation_output <- simulateResiduals(model_list[["HWF_97.5P_3d_L1AD_tpw"]]) %>
 simulation_output <- simulateResiduals(model_list[["HWF_97.5P_4d_L1AD_tpw"]]) %>%  plot()
 
 # export
-write_xlsx(results_df_f, "trends_decade_HWF.xlsx")
+write_xlsx(results_df_f, "HWF_trend_results.xlsx")
