@@ -102,7 +102,7 @@ Figure_2a <- data %>%
 
 Figure_2a
 
-Figure_1b <- data %>%
+Figure_2b <- data %>%
   ggplot() +
   geom_jitter(aes(x = Country, y = HWF_EHF),
               color = "#ef3b2c", width = 0.2, na.rm = TRUE, size = 1, height = 0.8, alpha = 0.2) +
@@ -121,10 +121,10 @@ Figure_1b <- data %>%
 
 Figure_2b
 
-Figure_2 <- (Figure_1a | Figure_1b )
+Figure_2 <- (Figure_2a | Figure_2b )
 Figure_2
 
-ggsave("Figures/Figure_1.png", plot = Figure_2, 
+ggsave("Figures/Figure_2.png", plot = Figure_2, 
        dpi = 300, width = 16, height = 7, units = "in", 
        bg = "white")
 
