@@ -6,235 +6,123 @@
 
 library(tidyverse); library(dplyr); library(arrow)
 library(glue); library(rlang); library(writexl)
-library(flextable)
-
-rm(list= ls())
-
-setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296")
+library(flextable); library(readxl)
 
 #---------------------------------------------
 # Table 1
 #---------------------------------------------
 data <- read_parquet("Data/data_final_model.parquet")
 
-# 1. prepare to add total and country as columns
+pop_country <- data %>%
+  group_by(Country, YEAR) %>%
+  summarise(pop_total   = sum(total_pop, na.rm = TRUE),
+            pop_exposed = sum(pop_exposed_HWN_EHF, na.rm = TRUE),
+            .groups = "drop") %>%
+  mutate(pct_exposed = 100 * pop_exposed / pop_total)
 
-add_total <- function(data, summary_expr, value_name) {
-  
-  by_country <- data %>%
-    summarize(!!value_name := {{ summary_expr }}, .by = Country)
-  
-  total <- data %>%
-    summarize(!!value_name := {{ summary_expr }}) %>%
-    mutate(Country = "Total")
-  bind_rows(by_country, total) %>%
-    pivot_wider(
-      names_from = Country,
-      values_from = !!sym(value_name))
-}
+pop_overall <- data %>%
+  group_by(YEAR) %>%
+  summarise(`Total population` = sum(total_pop, na.rm = TRUE),
+            `Population exposed (%)` = 100 * sum(pop_exposed_HWN_EHF, na.rm = TRUE) / 
+              sum(total_pop, na.rm = TRUE), .groups = "drop")
 
-to_char <- function(df) {
-  df %>% mutate(across(-variables, as.character))}
-
-# 2. Number of cities
-table_1a <- add_total(data, n_distinct(SALID1),"n_cities") %>%
-  mutate(variables = "n_cities", .before = 1) %>%
-  to_char()
-
-# 3. City population
-base_pop <- data %>% 
-  summarize(pop = first(total_pop), .by = c(Country, SALID1, YEAR)) %>% 
-  summarize(pop = pop/1000, .by = c(Country, SALID1, YEAR)) %>% 
-  summarize(pop = mean(pop), .by = c(Country, SALID1))
-
-table_1b <- add_total(base_pop,
-  glue("{round(median(pop))} ({round(quantile(pop,.1))}, {round(quantile(pop,.9))})"),
-  "city_pop") %>%
-  mutate(variables = "city_pop", .before = 1) %>%
-  to_char()
-
-# 4. Climate zones
-table_1d <- data %>%
-  distinct(Country, CLZ, SALID1) %>% 
-  count(Country, CLZ, name = "n_cities") %>%
-  bind_rows(data %>%
-              distinct(Country, CLZ, SALID1) %>% 
-              count(CLZ, name = "n_cities") %>%
-              mutate(Country = "Total")) %>%
-  group_by(Country) %>%
-  mutate(total = sum(n_cities), pct_clz = 100 * n_cities / total) %>%
-  ungroup() %>%
-  select(Country, CLZ, pct_clz) %>%
+pop_country_wide <- pop_country %>%
+  select(YEAR, Country, pct_exposed) %>%
   pivot_wider(names_from = Country,
-              values_from = pct_clz,
-              values_fill = 0) %>%
-  mutate(across(-CLZ, ~ format(round(.x, 1), nsmall = 1))) %>%
-  rename(variables = CLZ) %>%
-  to_char()
+              values_from = pct_exposed)
 
-# 5. HWN, HWF, and HWD
-table_1e <- bind_rows(
-  add_total(data,
-            glue("{round(median(HWN_EHF),0)} ({round(quantile(HWN_EHF,.1),0)}, {round(quantile(HWN_EHF,.9),0)})"),"HWN_EHF") %>%
-    mutate(variables = "HWN_EHF", .before = 1),
-  add_total(data,
-            glue("{round(median(HWF_EHF),0)} ({round(quantile(HWF_EHF,.1),0)}, {round(quantile(HWF_EHF,.9),0)})"),"HWF_EHF") %>%
-    mutate(variables = "HWF_EHF", .before = 1),
-  add_total(data,
-            glue("{round(median(HWD_EHF),0)} ({round(quantile(HWD_EHF,.1),0)}, {round(quantile(HWD_EHF,.9),0)})"),"HWD_EHF") %>%
-  mutate(variables = "HWD_EHF", .before = 1)) %>% 
-  to_char()
+table_1 <- pop_overall %>%
+  left_join(pop_country_wide, by = "YEAR") %>%
+  mutate(`Total population` = format(round(`Total population` / 1000),
+                                     big.mark = ",", scientific = FALSE),
+         across(where(is.numeric) & !YEAR, 
+                ~ ifelse(abs(. - 100) < 1e-9, "100%",
+                         paste0(sprintf("%.1f", .), "%")))) %>%
+  rename(Year = YEAR, `Total population (thousands)` = `Total population`)
 
+note_row1 <- tibble(Year = "Note: Population exposed (%) represents the percentage of the total population living in study cities exposed to at least one heatwave event each year. Country-specific percentages represent the percentage of the population living in the study cities within each country exposed in that year.")
 
-# 6. Cities variables
-data <- data %>%
-  mutate(GDP = GDP / 1000,
-         pop_density_guf = pop_density_guf / 1000,
-         pop_over65 = pop_over65 * 100)
+table_1$Year <- as.character(table_1$Year)
+table_1_final_excel <- bind_rows(table_1, note_row1)
 
-var <- c("pop_over65",
-         "pop_density_guf",
-         "GDP",
-         "education",
-         "urban_area_pct",
-         "NDVI")
-
-result_list <- lapply(var, function(v) {
-  
-  decimals <- ifelse(v %in% c("NDVI"), 2, 1)
-  base <- data %>% 
-    summarize(mean_val = mean(.data[[v]], na.rm = TRUE), .by = c(Country, SALID1))
-  add_total(base,
-            glue("{format(round(median(mean_val), decimals), nsmall = decimals)} ",
-                 "({format(round(quantile(mean_val, .1), decimals), nsmall = decimals)}, ",
-                 "{format(round(quantile(mean_val, .9), decimals), nsmall = decimals)})"), v) %>%
-    mutate(variables = v, .before = 1) %>%
-    to_char()
-})
-
-table_1g <- bind_rows(result_list)
-
-# 7. Join tables
-table1 <- bind_rows(table_1a, table_1e, table_1b, table_1g, table_1d)
-
-# 8. Prepare to final table 1
-var_labels <- c(
-  n_cities        = "Number of cities",
-  HWN_EHF         = "Annual HWN (EHF)*",
-  HWF_EHF         = "Annual HWF (EHF)*",
-  HWD_EHF         = "Annual HWD (EHF)*",
-  city_pop        = "City population (thousands)",
-  pop_density_guf = "Population density (1000 people per km2)",
-  GDP             = "GDP per capita (US$ thousands)",
-  pop_over65      = "Population ≥65 years (%)",
-  education       = "Completed primary education (%)",
-  urban_area_pct  = "Urban area (%)",
-  NDVI            = "Greenness (NDVI)")
-
-table1_names <- table1 %>%
-  mutate(variables = dplyr::recode(variables, !!!as.list(var_labels)))
-
-# add lines
-table1_names <- table1_names %>%
-  add_row(variables = "City social and environmental characteristics*",
-          .before = which(table1_names$variables == "City population (thousands)"))
-
-table1_names <- table1_names %>%
-  add_row(variables = "Climate Zones (%n cities)",
-          .before = which(table1_names$variables %in% unique(table_1d$variables))[1])
-# note
-col_1 <- names(table1_names)[1]
-
-table1_names <- table1_names %>%
-  add_row(!!col_1 := "* Values represent the median (10th, 90th percentiles) across cities within each country")
-
-# organize colunms and rename
-table1_names <- table1_names %>%
-  select("variables", "Total", "Argentina", "Brazil", "Central America", 
-         "Chile", "Colombia", "Mexico", "Peru") %>% 
-  rename("  " = variables)
-
-# 9. export as excel
-write_xlsx(table1_names, "Tables/Table_1.xlsx")
+# Export
+write_xlsx(table_1_final_excel, "Tables/Table_1.xlsx")
 
 #---------------------------------------------
 # Table 2
 #---------------------------------------------
 HWN_CLZ <- read_xlsx("Model_results/CLZ_HWN.xlsx")
 
-str(HWN_CLZ)
-
 # select only the results for HWN - EHF and select columns
 table_2 <- HWN_CLZ %>% 
-  slice(1:4) %>% 
-  select("...2", "Differences at baseline IRR (95% CI)", "Changes over time IRR (95% CI)")
+  slice(1:3) %>% 
+  rename(clz = "...2") %>% 
+  select("clz", "Differences at baseline IRR (95% CI) per decade", "Temporal trend IRR (95% CI) per decade")
 
-note_row2 <- tibble("...2" = "Note: * statistically significant (p<0.05)")
+table_2 <- table_2 %>%
+  mutate(clz = recode(clz,
+                      "Arid" = "Arid (76)",
+                      "Temperate" = "Temperate (123)",
+                      "Tropical" = "Tropical (154)"))
 
-CLZ_final_excel <- bind_rows(table_2, note_row2)
+note_row2 <- tibble(clz = "Note: * statistically significant (p<0.05)")
+note_row2a <- tibble(clz =  "For the reference category (Tropical), the value corresponds to the main effect of time only.")
 
-CLZ_final_excel <- CLZ_final_excel %>%
-  rename("  " = "...1")
+table_2_final_excel <- bind_rows(table_2, note_row2, note_row2a)
+
+table_2_final_excel <- table_2_final_excel %>%
+  rename("Climate zones (n of cities)" = clz)
 
 #  export as excel
-write_xlsx(CLZ_final_excel, "Tables/Table_2.xlsx")
+write_xlsx(table_2_final_excel, "Tables/Table_2.xlsx")
+
+# check n of cities
+# clz_n <- read_parquet("Data/data_final_model.parquet")
+# 
+# clz_number <- clz_n %>%
+#   distinct(SALID1, CLZ) %>%
+#   count(CLZ, name = "n_cities") %>%
+#   rename(variables = CLZ)
 
 #---------------------------------------------
 # Table 3
 #---------------------------------------------
-univariable_HWN <- read_xlsx("Model_results/univariable_HWN.xlsx")
-
-table_3 <- univariable_HWN %>% 
-  filter(Heatwave == "EHF") %>% 
-  select("City characteristic", "Univariable estimate (CI 95%)")
-
-note_row3 <- tibble("City characteristic" = "Note: * statistically significant (p<0.05)")
-table3_final <- bind_rows(table_3, note_row3)
-
-table3_final <- table3_final %>%
-  rename("  " = "City characteristic")
-
-#  export as excel
-write_xlsx(table3_final, "Tables/Table_3.xlsx")
-
-#---------------------------------------------
-# Table 4
-#---------------------------------------------
 hybrid_HWN <- read_xlsx("Model_results/HWN_hybrid_models.xlsx")
 
 hybrid_HWN <- hybrid_HWN %>% 
-  filter(outcome == "HWN_EHF")
+  filter(dep_var == "HWN_EHF")
 
 HWN_hybrid_btw <- hybrid_HWN %>%
   filter(str_detect(term, "_between_")) %>% 
-  rename("Between-city difference in IRR (CI 95%)" = final) %>% 
-  select(predictor, "Between-city difference in IRR (CI 95%)")
+  rename("Between-city difference in IRR (CI 95%) per decade" = final) %>% 
+  select(covariate, "Between-city difference in IRR (CI 95%) per decade")
 
 HWN_hybrid_wt <- hybrid_HWN %>%
   filter(str_detect(term, "_within_")) %>% 
-  rename("Within-city difference in IRR (CI 95%)" = final) %>% 
-  select(predictor, "Within-city difference in IRR (CI 95%)")
+  rename("Within-city difference in IRR (CI 95%) per decade" = final) %>% 
+  select(covariate, "Within-city difference in IRR (CI 95%) per decade")
 
-table4 <- HWN_hybrid_btw %>% 
-  left_join(HWN_hybrid_wt, by =c("predictor"))
+hybrid_table <- HWN_hybrid_btw %>% 
+  left_join(HWN_hybrid_wt, by ="covariate")
 
 # organize
-table4 <- table4 %>% 
-  mutate(predictor = case_when(
-    predictor == "total_pop" ~ "City population",
-    predictor == "pop_density" ~ "Population density",
-    predictor == "GDP" ~ "GDP per capita",
-    predictor == "pop_over65" ~ "Population ≥65 years (%)",
-    predictor == "education" ~ "Completed primary education (%)",
-    predictor == "urban_area_pct" ~ "Urban area (%)",
-    predictor == "NDVI" ~ "NDVI",
-    TRUE ~ predictor)) %>% 
-  rename("City characteristic" = predictor) 
+table3 <- hybrid_table %>% 
+  mutate(covariate = case_when(
+    covariate == "total_pop" ~ "City population (thousands)",
+    covariate == "pop_density" ~ "Population density (1000 people per km2)",
+    covariate == "GDP" ~ "GDP per capita (US$ thousands)",
+    covariate == "pop_over65" ~ "Population ≥65 years (%)",
+    covariate == "education" ~ "Completed primary education (%)",
+    covariate == "urban_area_pct" ~ "Urban area (%)",
+    covariate == "NDVI" ~ "NDVI",
+    TRUE ~ covariate)) %>% 
+  rename("City characteristic" = covariate) 
 
+note_row3 <- tibble("City characteristic" = "Note: * statistically significant (p<0.05);")
+note_row3a <- tibble("City characteristic" = "Estimates are expressed per 1-SD higher standardized value of each continuous city-level predictor;")
+note_row3b <- tibble("City characteristic" = "Each city-level characteristic was evaluated in a separate model.")
 
-note_row4 <- tibble("City characteristic" = "Note: * statistically significant (p<0.05)")
-
-table4_final <- bind_rows(table4, note_row4)
+table3_final <- bind_rows(table3, note_row3, note_row3a, note_row3b)
 
 #  export as excel
-write_xlsx(table4_final, "Tables/Table_4.xlsx")
+write_xlsx(table3_final, "Tables/Table_3.xlsx")

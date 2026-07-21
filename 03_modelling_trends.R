@@ -8,11 +8,7 @@ library(dplyr); library(tidyr); library(purrr)
 library(arrow); library(glmmTMB); library(broom.mixed)
 library(performance); library(ggplot2); library(writexl)
 
-setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296")
-
 data <- read_parquet("Data/data_final_model.parquet")
-
-str(data)
 
 data$SALID1 <- as.factor(data$SALID1)
 data$Country <- as.factor(data$Country)
@@ -84,27 +80,3 @@ HWD_vars <- c("HWD_EHF",
 res_HWN <- run_models(data, HWN_vars, "HWN_trends.xlsx")
 res_HWF <- run_models(data, HWF_vars, "HWF_trends.xlsx")
 res_HWD <- run_models(data, HWD_vars, "HWD_trends.xlsx")
-
-#------------------------------------------------------------------------
-# Plot observed vs predicted
-
-model_example <- glmmTMB(HWN_EHF ~ YEAR_dec + (1 | Country/SALID1),
-                         data = data,
-                         family = nbinom2(link = "log"))
-
-data$pred <- predict(model_example, type = "response")
-
-plot_data <- data %>%
-  group_by(YEAR) %>%
-  summarise(
-    observed = mean(HWN_EHF, na.rm = TRUE),
-    predicted = mean(pred, na.rm = TRUE))
-
-ggplot(plot_data, aes(x = YEAR)) +
-  geom_line(aes(y = observed, color = "Observed"), linewidth = 1) +
-  geom_line(aes(y = predicted, color = "Predicted"), linetype = "dashed", linewidth = 1) +
-  geom_point(aes(y = observed, color = "Observed")) +
-  geom_point(aes(y = predicted, color = "Predicted")) +
-  scale_color_manual(values = c("Observed" = "black", "Predicted" = "red")) +
-  theme_minimal() +
-  labs(title = "HWN_EHF", y = "HWN_EHF", x = "Year")

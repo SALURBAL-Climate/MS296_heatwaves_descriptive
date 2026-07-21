@@ -8,12 +8,7 @@ library(dplyr); library(arrow); library(RColorBrewer)
 library(tidyr); library(tidyverse); library(gtsummary)
 library(rlang); library(ggthemes); library(ggplot2)
 library(flextable); library(purrr); library(sf)
-library(ggspatial); library(RColorBrewer)
-library(patchwork); library(ggsn)
-
-rm(list= ls())
-
-setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296")
+library(ggspatial); library(patchwork); library(ggsn)
 
 data <- read_parquet("Data/data_hw_descriptive.parquet")
 data_pop <- read_parquet("Data/data_final_model.parquet")
@@ -31,956 +26,317 @@ data_map <- data %>% left_join(shapefile, by = c("SALID1"))
 #---------------------------------------------
 # Supplementary figure 1
 #---------------------------------------------
+# 1. Bar plots
+data <- data %>%
+  mutate(
+    period_5yr = case_when(
+      YEAR >= 2000 & YEAR <= 2004 ~ "2000–2004",
+      YEAR >= 2005 & YEAR <= 2009 ~ "2005–2009",
+      YEAR >= 2010 & YEAR <= 2014 ~ "2010–2014",
+      YEAR >= 2015 & YEAR <= 2019 ~ "2015–2019",
+      YEAR >= 2020 & YEAR <= 2024 ~ "2020–2024"))
+
+calc_summary <- function(df, var) {
+  df %>%
+    group_by(period_5yr) %>%
+    summarize(mean = mean({{ var }}, na.rm = TRUE),
+              sd = sd({{ var }}, na.rm = TRUE),
+              n = sum(!is.na({{ var }})),
+              se = sd / sqrt(n),
+              lower = mean - 1.96 * se,
+              upper = mean + 1.96 * se,.groups = "drop")
+}
+
+HWD_5yr_avg <- calc_summary(data, HWD_EHF)
+
+plot_bar <- function(df, ylab, title, fill_color) {
+  ggplot(df, aes(x = period_5yr, y = mean)) +
+    geom_col(fill = fill_color) +
+    geom_linerange(aes(ymin = lower, ymax = upper), linewidth = 0.6) +
+    labs(title = title, x = "", y = ylab) +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(size = 20, hjust = 0.5, color = "black"),
+      axis.text.y = element_text(size = 20, color = "black"),
+      axis.title.y = element_text(size = 24),
+      plot.title = element_text(size = 26, face = "bold"),)
+}
+
+Sup_figure_1_a <- plot_bar(HWD_5yr_avg,
+                      "Average longest heatwave duration (HWD-EHF)", "A",
+                      "#ef6548")
+# 2.  Boxplot
+Sup_figure_1_b <- data %>%
+  ggplot() +
+  geom_jitter(aes(x = Country, y = HWD_EHF),
+              color = "#ef6548", width = 0.2, na.rm = TRUE, size = 1, alpha = 0.2) +
+  geom_boxplot(aes(x = Country, y = HWD_EHF),
+               color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
+  scale_x_discrete(labels = function(x) gsub(" ", "\n", x)) +
+  theme_bw() +
+  ylim(0, 87) + 
+  theme(
+    axis.text.x = element_text(size = 20, hjust = 0.5, color = "black"),
+    axis.text.y = element_text(size = 20, color = "black"),
+    axis.title.y = element_text(size = 24),
+    plot.title = element_text(size = 26, face = "bold"),
+    panel.grid.major.x = element_blank(),
+    legend.position = "none") +
+  labs(title = "B", x = "", y = "Longest heatwave duration (HWD-EHF)")
+
+# 3. Combine
+Sup_figure_1 <- (Sup_figure_1_a | Sup_figure_1_b ) 
+Sup_figure_1
+
+# 4. Save
+ggsave(filename = "Figures/Sup_fig_1.png", 
+       plot = Sup_figure_1, width = 20, height = 10, dpi = 300, bg = "white")
+
+#---------------------------------------------
+# Supplementary figure 2
+#---------------------------------------------
 # 1. Box plots - HWN
-HWN_country_90P_2d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_90P_2d),
-    color = "#fb6a4a", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWN_90P_2d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 36) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "A1") +
-  xlab("") +
-  ylab("HWN_90P_2d")
+# ---- Boxplot helper ----
+make_boxplot <- function(data, var, color, label, ylim_max) {
+  ggplot(data) +
+    geom_jitter(aes(x = Country, y = .data[[var]]),
+                color = color, width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
+    geom_boxplot(aes(x = Country, y = .data[[var]]),
+                 color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
+    coord_cartesian(ylim = c(0, ylim_max)) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
+      axis.text.y = element_text(size = 10),
+      axis.title = element_text(size = 12),
+      panel.grid.major.x = element_blank(),
+      legend.position = "none") +
+    labs(title = label, x = "", y = var)
+}
 
-HWN_country_90P_3d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_90P_3d),
-    color = "#fb6a4a", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWN_90P_3d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 36) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "A2") +
-  xlab("") +
-  ylab("HWN_90P_3d")
+boxplot_config <- tibble::tribble(
+  ~var,             ~color,     ~label, ~ylim,
+  "HWN_90P_2d",    "#fb6a4a",  "A1",   36,
+  "HWN_90P_3d",    "#fb6a4a",  "A2",   36,
+  "HWN_90P_4d",    "#fb6a4a",  "A3",   36,
+  "HWN_95P_2d",    "#ef3b2c",  "B1",   24,
+  "HWN_95P_3d",    "#ef3b2c",  "B2",   24,
+  "HWN_95P_4d",    "#ef3b2c",  "B3",   24,
+  "HWN_97.5P_2d",  "#cb181d",  "C1",   18,
+  "HWN_97.5P_3d",  "#cb181d",  "C2",   18,
+  "HWN_97.5P_4d",  "#cb181d",  "C3",   18)
 
-HWN_country_90P_4d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_90P_4d),
-    color = "#fb6a4a", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  # Depois as caixas (agora ficarão na frente)
-  geom_boxplot(
-    aes(x = Country, y = HWN_90P_4d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 36) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "A3") +
-  xlab("") +
-  ylab("HWN_90P_4d")
+plots <- purrr::pmap(boxplot_config, function(var, color, label, ylim) {
+  make_boxplot(data, var, color, label, ylim)
+})
 
-HWN_country_95P_2d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_95P_2d),
-    color = "#ef3b2c", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWN_95P_2d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 24) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "B1") +
-  xlab("") +
-  ylab("HWN_95P_2d")
-
-HWN_country_95P_3d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_95P_3d),
-    color = "#ef3b2c", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWN_95P_3d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 24) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "B2") +
-  xlab("") +
-  ylab("HWN_95P_3d")
-
-HWN_country_95P_4d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_95P_4d),
-    color = "#ef3b2c", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  # Depois as caixas (agora ficarão na frente)
-  geom_boxplot(
-    aes(x = Country, y = HWN_95P_4d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 24) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "B3") +
-  xlab("") +
-  ylab("HWN_95P_4d")
-
-HWN_country_97.5P_2d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_97.5P_2d),
-    color = "#cb181d", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWN_97.5P_2d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 18) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "C1") +
-  xlab("") +
-  ylab("HWN_97.5P_2d")
-
-HWN_country_97.5P_3d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_97.5P_3d),
-    color = "#cb181d", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWN_97.5P_3d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 18) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "C2") +
-  xlab("") +
-  ylab("HWN_97.5P_3d")
-
-HWN_country_97.5P_4d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWN_97.5P_4d),
-    color = "#cb181d", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  # Depois as caixas (agora ficarão na frente)
-  geom_boxplot(
-    aes(x = Country, y = HWN_97.5P_4d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 18) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "C3") +
-  xlab("") +
-  ylab("HWN_97.5P_4d")
-
-# Combine plots
-combined_plot <- (HWN_country_90P_2d | HWN_country_90P_3d | HWN_country_90P_4d) /
-  (HWN_country_95P_2d | HWN_country_95P_3d | HWN_country_95P_4d) /
-  (HWN_country_97.5P_2d | HWN_country_97.5P_3d | HWN_country_97.5P_4d)
+combined_plot <- (plots[[1]] | plots[[2]] | plots[[3]]) /
+  (plots[[4]] | plots[[5]] | plots[[6]]) /
+  (plots[[7]] | plots[[8]] | plots[[9]])
 
 combined_plot
 
-# Export
-ggsave("Figures/Sup_fig_1.png", plot = combined_plot, width = 20, height = 15, dpi = 300, bg = "white")
+ggsave("Figures/Sup_fig_2.png", plot = combined_plot, 
+       width = 20, height = 15, dpi = 300, bg = "white")
 
 #---------------------------------------------
-# Supplementary figure - 2
+# Supplementary figure - 3
 #---------------------------------------------
 # 2. Box plots - HWF
-HWF_country_90P_2d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_90P_2d),
-    color = "#fb6a4a", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWF_90P_2d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 200) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "A1") +
-  xlab("") +
-  ylab("HWF_90P_2d")
+boxplot_config_f <- tibble::tribble(
+  ~var,             ~color,     ~label, ~ylim,
+  "HWF_90P_2d",    "#fb6a4a",  "A1",   200,
+  "HWF_90P_3d",    "#fb6a4a",  "A2",   200,
+  "HWF_90P_4d",    "#fb6a4a",  "A3",   200,
+  "HWF_95P_2d",    "#ef3b2c",  "B1",   130,
+  "HWF_95P_3d",    "#ef3b2c",  "B2",   130,
+  "HWF_95P_4d",    "#ef3b2c",  "B3",   130,
+  "HWF_97.5P_2d",  "#cb181d",  "C1",   84,
+  "HWF_97.5P_3d",  "#cb181d",  "C2",   84,
+  "HWF_97.5P_4d",  "#cb181d",  "C3",   84)
 
-HWF_country_90P_3d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_90P_3d),
-    color = "#fb6a4a", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWF_90P_3d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 200) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "A2") +
-  xlab("") +
-  ylab("HWF_90P_3d")
+plots <- purrr::pmap(boxplot_config_f, function(var, color, label, ylim) {
+  make_boxplot(data, var, color, label, ylim)
+})
 
-HWF_country_90P_4d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_90P_4d),
-    color = "#fb6a4a", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  # Depois as caixas (agora ficarão na frente)
-  geom_boxplot(
-    aes(x = Country, y = HWF_90P_4d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 200) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "A3") +
-  xlab("") +
-  ylab("HWF_90P_4d")
+combined_plot_3 <- (plots[[1]] | plots[[2]] | plots[[3]]) /
+  (plots[[4]] | plots[[5]] | plots[[6]]) /
+  (plots[[7]] | plots[[8]] | plots[[9]])
 
-HWF_country_95P_2d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_95P_2d),
-    color = "#ef3b2c", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWF_95P_2d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 130) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "B1") +
-  xlab("") +
-  ylab("HWF_95P_2d")
+combined_plot_3
 
-HWF_country_95P_3d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_95P_3d),
-    color = "#ef3b2c", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWF_95P_3d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 130) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "B2") +
-  xlab("") +
-  ylab("HWF_95P_3d")
-
-HWF_country_95P_4d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_95P_4d),
-    color = "#ef3b2c", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  # Depois as caixas (agora ficarão na frente)
-  geom_boxplot(
-    aes(x = Country, y = HWF_95P_4d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 130) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "B3") +
-  xlab("") +
-  ylab("HWF_95P_4d")
-
-HWF_country_97.5P_2d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_97.5P_2d),
-    color = "#cb181d", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWF_97.5P_2d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 84) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "C1") +
-  xlab("") +
-  ylab("HWF_97.5P_2d")
-
-HWF_country_97.5P_3d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_97.5P_3d),
-    color = "#cb181d", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  geom_boxplot(
-    aes(x = Country, y = HWF_97.5P_3d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 84) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "C2") +
-  xlab("") +
-  ylab("HWF_97.5P_3d")
-
-HWF_country_97.5P_4d <- data %>% 
-  ggplot() +
-  geom_jitter(
-    aes(x = Country, y = HWF_97.5P_4d),
-    color = "#cb181d", width = 0.2, na.rm = TRUE, size = 0.8, alpha = 0.2) +
-  # Depois as caixas (agora ficarão na frente)
-  geom_boxplot(
-    aes(x = Country, y = HWF_97.5P_4d),
-    color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 84) +  
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(size = 9, hjust = 0.5, vjust = 0.5),
-    axis.text.y = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    panel.grid.major.x = element_blank(),
-    legend.position = "none") +
-  labs(title = "C3") +
-  xlab("") +
-  ylab("HWF_97.5P_4d")
-
-# Combine plots
-combined_plot2 <- (HWF_country_90P_2d | HWF_country_90P_3d | HWF_country_90P_4d) /
-  (HWF_country_95P_2d | HWF_country_95P_3d | HWF_country_95P_4d) /
-  (HWF_country_97.5P_2d | HWF_country_97.5P_3d | HWF_country_97.5P_4d)
-
-combined_plot2
-
-# Export
-ggsave("Figures/Sup_fig_2.png", plot = combined_plot2, width = 20, height = 15, dpi = 300, bg = "white")
+ggsave("Figures/Sup_fig_3.png", plot = combined_plot_3, 
+       width = 20, height = 15, dpi = 300, bg = "white")
 
 #---------------------------------------------
-# Supplementary figures - 3 to 5
+# Supplementary figures - 4 to 6
 #---------------------------------------------
-# 3. Lines plot - HWN
+# ---- Time series helper ----
+make_timeseries <- function(data, avg_data, var, mean_var, color, label, ylim_max) {
+  ggplot() +
+    geom_line(data = data, aes(x = YEAR, y = .data[[var]], group = SALID1),
+              color = color, alpha = 0.4) +
+    geom_line(data = avg_data, aes(x = YEAR, y = .data[[mean_var]]),
+              color = "#252525", linewidth = 0.8) +
+    facet_wrap(~Country, ncol = 7) +
+    coord_cartesian(ylim = c(0, ylim_max)) +
+    labs(title = label, x = "Year", y = var) +
+    theme_bw() +
+    theme(
+      strip.background = element_rect(fill = "white", color = "black", linewidth = 0.4),
+      strip.text = element_text(face = "bold", size = 20),
+      plot.title = element_text(size = 28, face = "bold"),
+      axis.text.x = element_text(size = 18, angle = 90, hjust = 1, vjust = 0.5, color = "black"),
+      axis.text.y = element_text(size = 18, color = "black"),
+      axis.title.x = element_text(size = 18),
+      axis.title.y = element_text(size = 18),
+      panel.spacing = unit(1, "lines"))
+}
+
+hw_vars_to_plot <- c("HWN_90P_2d", "HWN_90P_3d", "HWN_90P_4d",
+                     "HWN_95P_2d", "HWN_95P_3d", "HWN_95P_4d",
+                     "HWN_97.5P_2d", "HWN_97.5P_3d", "HWN_97.5P_4d")
+
 df_country_avg <- data %>%
   group_by(Country, YEAR) %>%
-  summarize(
-    mean_HWN_90P_2d = mean(HWN_90P_2d, na.rm = TRUE),
-    mean_HWN_90P_3d = mean(HWN_90P_3d, na.rm = TRUE),
-    mean_HWN_90P_4d = mean(HWN_90P_4d, na.rm = TRUE),
-    mean_HWN_95P_2d = mean(HWN_95P_2d, na.rm = TRUE),
-    mean_HWN_95P_3d = mean(HWN_95P_3d, na.rm = TRUE),
-    mean_HWN_95P_4d = mean(HWN_95P_4d, na.rm = TRUE),
-    mean_HWN_97.5P_2d = mean(HWN_97.5P_2d, na.rm = TRUE),
-    mean_HWN_97.5P_3d = mean(HWN_97.5P_3d, na.rm = TRUE),
-    mean_HWN_97.5P_4d = mean(HWN_97.5P_4d, na.rm = TRUE),
-    .groups = "drop")
+  summarize(across(all_of(hw_vars_to_plot), ~mean(.x, na.rm = TRUE),
+                   .names = "mean_{.col}"), .groups = "drop")
 
-line_90P_2d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_90P_2d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_90P_2d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 36)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWN_90P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+# plots
+# 90P
+line_90P_2d <- make_timeseries(data, df_country_avg, "HWN_90P_2d", "mean_HWN_90P_2d", "#fc9272", "A", 36)
+line_90P_3d <- make_timeseries(data, df_country_avg, "HWN_90P_3d", "mean_HWN_90P_3d", "#fc9272", "B", 36)
+line_90P_4d <- make_timeseries(data, df_country_avg, "HWN_90P_4d", "mean_HWN_90P_4d", "#fc9272", "C", 36)
 
-line_90P_3d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_90P_3d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_90P_3d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 36)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWN_90P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+# 95P
+line_95P_2d <- make_timeseries(data, df_country_avg, "HWN_95P_2d", "mean_HWN_95P_2d", "#fc9272", "A", 24)
+line_95P_3d <- make_timeseries(data, df_country_avg, "HWN_95P_3d", "mean_HWN_95P_3d", "#fc9272", "B", 24)
+line_95P_4d <- make_timeseries(data, df_country_avg, "HWN_95P_4d", "mean_HWN_95P_4d", "#fc9272", "C", 24)
 
-line_90P_4d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_90P_4d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_90P_4d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 36)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWN_90P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+# 97.5P
+line_97.5P_2d <- make_timeseries(data, df_country_avg, "HWN_97.5P_2d", "mean_HWN_97.5P_2d", "#fc9272", "A", 16)
+line_97.5P_3d <- make_timeseries(data, df_country_avg, "HWN_97.5P_3d", "mean_HWN_97.5P_3d", "#fc9272", "B", 16)
+line_97.5P_4d <- make_timeseries(data, df_country_avg, "HWN_97.5P_4d", "mean_HWN_97.5P_4d", "#fc9272", "C", 16)
 
-line_95P_2d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_95P_2d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_95P_2d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 24)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWN_95P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
 
-line_95P_3d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_95P_3d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_95P_3d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 24)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWN_95P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_95P_4d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_95P_4d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_95P_4d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 24)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWN_95P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_2d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_97.5P_2d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_97.5P_2d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 16)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWN_97.5P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_3d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_97.5P_3d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_97.5P_3d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 16)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWN_97.5P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_4d <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWN_97.5P_4d, group = SALID1), 
-            color = "#fb6a4a", alpha = 0.4) +
-  geom_line(data = df_country_avg, aes(x = YEAR, y = mean_HWN_97.5P_4d), 
-            color = "#252525", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 16)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWN_97.5P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-# Combine plots and export
-combined_plot_6 <- (line_90P_2d) / (line_90P_3d) / (line_90P_4d)
-ggsave(filename = "Figures/Sup_fig_3.png",
-       width = 30, height = 18, dpi = 300, bg = "white")  
-
-# Combine plots
-combined_plot_7 <- (line_95P_2d) / (line_95P_3d) / (line_95P_4d)
+combined_plot_4 <- (line_90P_2d) / (line_90P_3d) / (line_90P_4d)
+combined_plot_4
 ggsave(filename = "Figures/Sup_fig_4.png",
-       width = 30, height = 18, dpi = 300, bg = "white")  
+       plot = combined_plot_4,
+       width = 30, height = 18, dpi = 300, bg = "white")
 
-# Combine plots
-combined_plot_8 <- (line_97.5P_2d) / (line_97.5P_3d) / (line_97.5P_4d)
+combined_plot_5 <- (line_95P_2d) / (line_95P_3d) / (line_95P_4d)
 ggsave(filename = "Figures/Sup_fig_5.png",
-       width = 30, height = 18, dpi = 300, bg = "white")  
+       plot = combined_plot_5,
+       width = 30, height = 18, dpi = 300, bg = "white")
+
+combined_plot_6 <- (line_97.5P_2d) / (line_97.5P_3d) / (line_97.5P_4d)
+ggsave(filename = "Figures/Sup_fig_6.png",
+       plot = combined_plot_6,
+       width = 30, height = 18, dpi = 300, bg = "white")
 
 #---------------------------------------------
-# Supplementary figures 6 to 8
+# Supplementary figures 7 to 9
 #---------------------------------------------
 # HWF
-df_country_avg_F <- data %>%
+hw_vars_to_plot_f <- c("HWF_90P_2d", "HWF_90P_3d", "HWF_90P_4d",
+                       "HWF_95P_2d", "HWF_95P_3d", "HWF_95P_4d",
+                       "HWF_97.5P_2d", "HWF_97.5P_3d", "HWF_97.5P_4d")
+
+df_country_avg_f <- data %>%
   group_by(Country, YEAR) %>%
-  summarize(
-    mean_HWF_90P_2d = mean(HWF_90P_2d, na.rm = TRUE),
-    mean_HWF_90P_3d = mean(HWF_90P_3d, na.rm = TRUE),
-    mean_HWF_90P_4d = mean(HWF_90P_4d, na.rm = TRUE),
-    mean_HWF_95P_2d = mean(HWF_95P_2d, na.rm = TRUE),
-    mean_HWF_95P_3d = mean(HWF_95P_3d, na.rm = TRUE),
-    mean_HWF_95P_4d = mean(HWF_95P_4d, na.rm = TRUE),
-    mean_HWF_97.5P_2d = mean(HWF_97.5P_2d, na.rm = TRUE),
-    mean_HWF_97.5P_3d = mean(HWF_97.5P_3d, na.rm = TRUE),
-    mean_HWF_97.5P_4d = mean(HWF_97.5P_4d, na.rm = TRUE),
-    .groups = "drop")
+  summarize(across(all_of(hw_vars_to_plot_f), ~mean(.x, na.rm = TRUE),
+                   .names = "mean_{.col}"), .groups = "drop")
 
-line_90P_2d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_90P_2d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_90P_2d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 200)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWF_90P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+# plots
+# 90P
+line_f_90P_2d <- make_timeseries(data, df_country_avg_f, "HWF_90P_2d", "mean_HWF_90P_2d", "#fc8d59", "A", 200)
+line_f_90P_3d <- make_timeseries(data, df_country_avg_f, "HWF_90P_3d", "mean_HWF_90P_3d", "#fc8d59", "B", 200)
+line_f_90P_4d <- make_timeseries(data, df_country_avg_f, "HWF_90P_4d", "mean_HWF_90P_4d", "#fc8d59", "C", 200)
 
-line_90P_3d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_90P_3d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_90P_3d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 200)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWF_90P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+# 95P
+line_f_95P_2d <- make_timeseries(data, df_country_avg_f, "HWF_95P_2d", "mean_HWF_95P_2d", "#fc8d59", "A", 130)
+line_f_95P_3d <- make_timeseries(data, df_country_avg_f, "HWF_95P_3d", "mean_HWF_95P_3d", "#fc8d59", "B", 130)
+line_f_95P_4d <- make_timeseries(data, df_country_avg_f, "HWF_95P_4d", "mean_HWF_95P_4d", "#fc8d59", "C", 130)
 
-line_90P_4d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_90P_4d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_90P_4d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 200)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWF_90P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+# 97.5P
+line_f_97.5P_2d <- make_timeseries(data, df_country_avg_f, "HWF_97.5P_2d", "mean_HWF_97.5P_2d", "#fc8d59", "A", 84)
+line_f_97.5P_3d <- make_timeseries(data, df_country_avg_f, "HWF_97.5P_3d", "mean_HWF_97.5P_3d", "#fc8d59", "B", 84)
+line_f_97.5P_4d <- make_timeseries(data, df_country_avg_f, "HWF_97.5P_4d", "mean_HWF_97.5P_4d", "#fc8d59", "C", 84)
 
-line_95P_2d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_95P_2d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_95P_2d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 130)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWF_95P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
 
-line_95P_3d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_95P_3d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_95P_3d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 130)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWF_95P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_95P_4d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_95P_4d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_95P_4d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 130)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWF_95P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_2d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_97.5P_2d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_97.5P_2d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 84)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWF_97.5P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_3d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_97.5P_3d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_97.5P_3d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 84)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWF_97.5P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_4d_F <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWF_97.5P_4d, group = SALID1), 
-            color = "#ef3b2c", alpha = 0.4) +
-  geom_line(data = df_country_avg_F, aes(x = YEAR, y = mean_HWF_97.5P_4d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 84)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWF_97.5P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-# Combine plots and export
-combined_plot_1F <- (line_90P_2d_F) / (line_90P_3d_F) / (line_90P_4d_F)
-ggsave(filename = "Figures/Sup_fig_6.png",
-       width = 30, height = 20, dpi = 300, bg = "white")  
-
-# Combine plots
-combined_plot_2F <- (line_95P_2d_F) / (line_95P_3d_F) / (line_95P_4d_F)
+combined_plot_7 <- (line_f_90P_2d) / (line_f_90P_3d) / (line_f_90P_4d)
 ggsave(filename = "Figures/Sup_fig_7.png",
-       width = 30, height = 18, dpi = 300, bg = "white")  
+       plot = combined_plot_7,
+       width = 30, height = 18, dpi = 300, bg = "white")
 
-# Combine plots
-combined_plot_3F <- (line_97.5P_2d_F) / (line_97.5P_3d_F) / (line_97.5P_4d_F)
+combined_plot_8 <- (line_f_95P_2d) / (line_f_95P_3d) / (line_f_95P_4d)
 ggsave(filename = "Figures/Sup_fig_8.png",
-       width = 30, height = 18, dpi = 300, bg = "white")  
+       plot = combined_plot_8,
+       width = 30, height = 18, dpi = 300, bg = "white")
+
+combined_plot_9 <- (line_f_97.5P_2d) / (line_f_97.5P_3d) / (line_f_97.5P_4d)
+ggsave(filename = "Figures/Sup_fig_9.png",
+       plot = combined_plot_9,
+       width = 30, height = 18, dpi = 300, bg = "white") 
 
 #---------------------------------------------
-# Supplementary figures - 9 to 11
+# Supplementary figures - 10 to 12
 #---------------------------------------------
 # HWD
-df_country_avg_D <- data %>%
+hw_vars_to_plot_d <- c("HWD_EHF",
+                       "HWD_90P_2d", "HWD_90P_3d", "HWD_90P_4d",
+                       "HWD_95P_2d", "HWD_95P_3d", "HWD_95P_4d",
+                       "HWD_97.5P_2d", "HWD_97.5P_3d", "HWD_97.5P_4d")
+
+df_country_avg_d <- data %>%
   group_by(Country, YEAR) %>%
-  summarize(
-    mean_HWD_EHF = mean(HWD_EHF, na.rm = TRUE),
-    mean_HWD_90P_2d = mean(HWD_90P_2d, na.rm = TRUE),
-    mean_HWD_90P_3d = mean(HWD_90P_3d, na.rm = TRUE),
-    mean_HWD_90P_4d = mean(HWD_90P_4d, na.rm = TRUE),
-    mean_HWD_95P_2d = mean(HWD_95P_2d, na.rm = TRUE),
-    mean_HWD_95P_3d = mean(HWD_95P_3d, na.rm = TRUE),
-    mean_HWD_95P_4d = mean(HWD_95P_4d, na.rm = TRUE),
-    mean_HWD_97.5P_2d = mean(HWD_97.5P_2d, na.rm = TRUE),
-    mean_HWD_97.5P_3d = mean(HWD_97.5P_3d, na.rm = TRUE),
-    mean_HWD_97.5P_4d = mean(HWD_97.5P_4d, na.rm = TRUE),
-    .groups = "drop")
+  summarize(across(all_of(hw_vars_to_plot_d), ~mean(.x, na.rm = TRUE),
+                   .names = "mean_{.col}"), .groups = "drop")
 
-line_EHF_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_EHF, group = SALID1),
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_EHF),
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +
-  coord_cartesian(ylim = c(0, 88)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWD_EHF") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1))
+# plots
+# 90P
+line_d_EHF <- make_timeseries(data, df_country_avg_d, "HWD_EHF", "mean_HWD_EHF", "#ef6548", "A", 88)
+line_d_90P_2d <- make_timeseries(data, df_country_avg_d, "HWD_90P_2d", "mean_HWD_90P_2d", "#ef6548", "B", 88)
+line_d_90P_3d <- make_timeseries(data, df_country_avg_d, "HWD_90P_3d", "mean_HWD_90P_3d", "#ef6548", "C", 88)
+line_d_90P_4d <- make_timeseries(data, df_country_avg_d, "HWD_90P_4d", "mean_HWD_90P_4d", "#ef6548", "D", 88)
 
-line_90P_2d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_90P_2d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_90P_2d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 88)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWD_90P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+# 95P
+line_d_95P_2d <- make_timeseries(data, df_country_avg_d, "HWD_95P_2d", "mean_HWD_95P_2d", "#ef6548", "A", 68)
+line_d_95P_3d <- make_timeseries(data, df_country_avg_d, "HWD_95P_3d", "mean_HWD_95P_3d", "#ef6548", "B", 68)
+line_d_95P_4d <- make_timeseries(data, df_country_avg_d, "HWD_95P_4d", "mean_HWD_95P_4d", "#ef6548", "C", 68)
 
-line_90P_3d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_90P_3d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_90P_3d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 88)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWD_90P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+# 97.5P
+line_d_97.5P_2d <- make_timeseries(data, df_country_avg_d, "HWD_97.5P_2d", "mean_HWD_97.5P_2d", "#ef6548", "A", 63)
+line_d_97.5P_3d <- make_timeseries(data, df_country_avg_d, "HWD_97.5P_3d", "mean_HWD_97.5P_3d", "#ef6548", "B", 63)
+line_d_97.5P_4d <- make_timeseries(data, df_country_avg_d, "HWD_97.5P_4d", "mean_HWD_97.5P_4d", "#ef6548", "C", 63)
 
-line_90P_4d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_90P_4d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_90P_4d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 88)) +
-  labs(title = "D") +
-  labs(x = "Year",
-       y = "HWD_90P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(size = 12, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+combined_plot_10 <- (line_d_EHF) / (line_d_90P_2d) / (line_d_90P_3d) / (line_d_90P_4d)
+ggsave(filename = "Figures/Sup_fig_10.png",
+       plot = combined_plot_10,
+       width = 30, height = 18, dpi = 300, bg = "white")
 
-line_95P_2d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_95P_2d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_95P_2d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 68)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWD_95P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
+combined_plot_11 <- (line_d_95P_2d) / (line_d_95P_3d) / (line_d_95P_4d)
+ggsave(filename = "Figures/Sup_fig_11.png",
+       plot = combined_plot_11,
+       width = 30, height = 18, dpi = 300, bg = "white")
 
-line_95P_3d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_95P_3d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_95P_3d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 68)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWD_95P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_95P_4d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_95P_4d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_95P_4d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 68)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWD_95P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_2d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_97.5P_2d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_97.5P_2d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 63)) +
-  labs(title = "A") +
-  labs(x = "Year",
-       y = "HWD_97.5P_2d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_3d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_97.5P_3d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_97.5P_3d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 63)) +
-  labs(title = "B") +
-  labs(x = "Year",
-       y = "HWD_97.5P_3d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-line_97.5P_4d_D <- ggplot() +
-  geom_line(data = data, aes(x = YEAR, y = HWD_97.5P_4d, group = SALID1), 
-            color = "#fd8d3c", alpha = 0.4) +
-  geom_line(data = df_country_avg_D, aes(x = YEAR, y = mean_HWD_97.5P_4d), 
-            color = "black", linewidth = 0.8) +
-  facet_wrap(~Country, ncol = 7) +  
-  coord_cartesian(ylim = c(0, 63)) +
-  labs(title = "C") +
-  labs(x = "Year",
-       y = "HWD_97.5P_4d") +
-  theme_bw(base_size = 13) +
-  theme(strip.text = element_text(face = "bold", size = 12),
-        plot.title = element_text(size = 16, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 12))
-
-# Combine plots and export
-combined_plot_1D <- (line_EHF_D) / (line_90P_2d_D) / (line_90P_3d_D) / (line_90P_4d_D)
-ggsave(filename = "Figures/Sup_Fig_9.png",
-       width = 30, height = 20, dpi = 300, bg = "white")  
-
-# Combine plots
-combined_plot_2D <- (line_95P_2d_D) / (line_95P_3d_D) / (line_95P_4d_D)
-ggsave(filename = "Figures/Sup_Fig_10.png",
-       width = 30, height = 18, dpi = 300, bg = "white")  
-
-# Combine plots
-combined_plot_3D <- (line_97.5P_2d_D) / (line_97.5P_3d_D) / (line_97.5P_4d_D)
-ggsave(filename = "Figures/Sup_Fig_11.png",
-       width = 30, height = 18, dpi = 300, bg = "white")  
-
+combined_plot_12 <- (line_d_97.5P_2d) / (line_d_97.5P_3d) / (line_d_97.5P_4d)
+ggsave(filename = "Figures/Sup_fig_12.png",
+       plot = combined_plot_12,
+       width = 30, height = 18, dpi = 300, bg = "white")
 
 #---------------------------------------------
-# Supplementary figures - 12
+# Supplementary figures - 13
 #---------------------------------------------
 # 3. Map HWF
 breaks_HWF <- c(0, 20, 40, 60, 80, 100, Inf)
-labels_HWF <- c("0", "20","40", "60", "80", "≥100")
+labels_HWF <- c("0-19", "20-39","40-59", "60-79", "80-99", "≥100")
 cores_classes <- c("#fcbba1", "#fc9272", "#ef3b2c", "#cb181d", "#a50f15", "#67000d")
-size_circ <- c(1.3, 1.8, 2.1, 2.8, 3, 3.4)
+size_circ <- c(2, 2, 2, 2, 2, 2)
 
 data_map <- data_map %>%
-  mutate(hwn_class = cut(
+  mutate(hwf_class = cut(
     HWF_EHF,
     breaks = breaks_HWF,
     labels = labels_HWF,
@@ -988,20 +344,20 @@ data_map <- data_map %>%
     right = FALSE))
 
 data_map <- data_map %>%
-  arrange(desc(as.numeric(hwn_class)))
+  arrange(desc(as.numeric(hwf_class)))
 
 data_map_YEARs <- data_map %>%
   filter(between(YEAR, 2000, 2004) | between(YEAR, 2020, 2024)) %>%
-  arrange(desc(as.numeric(hwn_class)))
+  arrange(desc(as.numeric(hwf_class)))
 
 # Map
-Sup_fig_12 <- ggplot() +
+Sup_fig_13 <- ggplot() +
   geom_sf(data = shp_base, fill = "#bdbdbd", color = "#bdbdbd", linewidth = 0.3) +
   geom_sf(data = shp_SALURBAL_countries, fill = "white", color = "#bdbdbd", linewidth = 0.3) +
   geom_sf(
     data = data_map_YEARs,
-    aes(geometry = geometry, size = hwn_class, fill = hwn_class),
-    shape = 21, color = "#737373", stroke = 0.1, alpha = 1) +
+    aes(geometry = geometry, size = hwf_class, fill = hwf_class),
+    shape = 21, color = "#737373", stroke = 0.3, alpha = 1) +
   scale_size_manual(name = "HWF - EHF", values = size_circ,
                     labels = labels_HWF, drop = FALSE) +
   scale_fill_manual( name = "HWF - EHF",
@@ -1032,312 +388,242 @@ Sup_fig_12 <- ggplot() +
                  box.color = "gray30",
                  border.size = 0.2,
                  st.bottom = TRUE)
-Sup_fig_12
+Sup_fig_13
 
 # Save
-ggsave("Figures/Sup_fig_12_teste.png", Sup_fig_12, width = 21, height = 12, dpi = 700, bg = "white")
+ggsave("Figures/Sup_fig_13.png", Sup_fig_13, width = 21, height = 12, dpi = 700, bg = "white")
 
 #---------------------------------------------
-# Supplementary figures - 13 
+# Supplementary figures - 14 
 #---------------------------------------------
 # Pop exposure
 # at least one heatwave
-df_plot_90_1 <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWN_EHF = sum(pop_exposed_HWN_EHF, na.rm = TRUE) / 1e6,
-    HWN_90P_2d = sum(pop_exposed_HWN_90P_2d, na.rm = TRUE) / 1e6,
-    HWN_90P_3d = sum(pop_exposed_HWN_90P_3d, na.rm = TRUE) / 1e6,
-    HWN_90P_4d = sum(pop_exposed_HWN_90P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
+hw_definitions <- c("HWN_EHF",
+                    "HWN_90P_2d", "HWN_90P_3d", "HWN_90P_4d",
+                    "HWN_95P_2d", "HWN_95P_3d", "HWN_95P_4d",
+                    "HWN_97.5P_2d", "HWN_97.5P_3d", "HWN_97.5P_4d")
 
-df_plot_95_1 <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWN_95P_2d = sum(pop_exposed_HWN_95P_2d, na.rm = TRUE) / 1e6,
-    HWN_95P_3d = sum(pop_exposed_HWN_95P_3d, na.rm = TRUE) / 1e6,
-    HWN_95P_4d = sum(pop_exposed_HWN_95P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
+plot_labels <- LETTERS[1:length(hw_definitions)]
 
-df_plot_97.5_1 <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWN_97.5P_2d = sum(pop_exposed_HWN_97.5P_2d, na.rm = TRUE) / 1e6,
-    HWN_97.5P_3d = sum(pop_exposed_HWN_97.5P_3d, na.rm = TRUE) / 1e6,
-    HWN_97.5P_4d = sum(pop_exposed_HWN_97.5P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
+scenario_colors <- c(
+  "Fixed population (2000)" = "#feb24c",
+  "Observed population"     = "#ef3b2c")
 
+make_hw_plot <- function(hw_def, label) {
+  
+  pop_col     <- paste0("pop_exposed_", hw_def)
+  pop2000_col <- paste0("pop2000_exposed_", hw_def)
+  
+  df <- data_pop %>%
+    group_by(YEAR) %>%
+    summarise(
+      obs = sum(.data[[pop_col]],     na.rm = TRUE) / 1e6,
+      fix = sum(.data[[pop2000_col]], na.rm = TRUE) / 1e6,
+      .groups = "drop") %>%
+    pivot_longer(cols = c(obs, fix),
+                 names_to = "scenario",
+                 values_to = "exposure") %>%
+    mutate(scenario = recode(scenario,
+                             "fix" = "Fixed population (2000)",
+                             "obs" = "Observed population"))
+  
+  ggplot(df, aes(x = YEAR, y = exposure,
+                 color = scenario, fill = scenario)) +
+    geom_point(alpha = 0.6) +
+    geom_smooth(method = "loess", se = TRUE,
+                span = 0.5, linewidth = 1.2, alpha = 0.2) +
+    scale_color_manual(values = scenario_colors) +
+    scale_fill_manual(values  = scenario_colors) +
+    scale_y_continuous() +
+    coord_cartesian(ylim = c(0, 350), xlim = c(1999, 2026)) +
+    labs(title = label,
+         x = "Year",
+         y = paste0("Population exposed (millions)\n", gsub("HWN_", "", hw_def)),
+         color = "", fill = "") +
+    theme_minimal() +
+    theme(
+      plot.title      = element_text(size = 24, face = "bold"),
+      axis.text       = element_text(size = 22, color = "black"),
+      axis.title.x    = element_text(size = 22, hjust = 0.5),
+      axis.title.y    = element_text(size = 22),
+      legend.position = "bottom",
+      legend.text     = element_text(size = 20))
+}
 
-hw90P_1hw <- ggplot(df_plot_90_1, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "A",
-       y = "Population exposed (millions)",
-       x = "Year",
-       color = "") +
-  scale_color_manual(values = c(
-    "HWN_90P_2d" = "#fed976",
-    "HWN_90P_3d" = "#feb24c",
-    "HWN_90P_4d" = "#fd8d3c",
-    "HWN_EHF" = "#fc4e2a")) +
-  scale_y_continuous(limits = c(0, 318)) +  
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        plot.title = element_text(size = 24, face = "bold"),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        legend.title = element_text(size = 12),  
-        legend.text = element_text(size = 12))
+plot_list <- map2(hw_definitions, plot_labels, make_hw_plot)
 
+design <- "
+#A#
+BCD
+EFG
+HIJ
+"
 
-hw95P_1hw <- ggplot(df_plot_95_1, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "B",
-       y = "Population exposed (millions)",
-       x = "Year",
-       color = "") +
-  scale_color_manual(values = c(
-    "HWN_95P_2d" = "#fcbba1",
-    "HWN_95P_3d" = "#fb6a4a",
-    "HWN_95P_4d" = "#ef3b2c")) +
-  scale_y_continuous(limits = c(0, 318)) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        plot.title = element_text(size = 24, face = "bold"),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        legend.title = element_text(size = 12),  
-        legend.text = element_text(size = 12))
+combined_plot14 <- wrap_plots(
+  plot_list[[1]],   
+  plot_list[[2]],   
+  plot_list[[3]],   
+  plot_list[[4]],  
+  plot_list[[5]],   
+  plot_list[[6]],   
+  plot_list[[7]],   
+  plot_list[[8]],   
+  plot_list[[9]], 
+  plot_list[[10]]) +
+  plot_layout(design = design, guides = "collect") &
+  theme(legend.position = "bottom")
 
+combined_plot14
 
-hw97.55P_1hw <- ggplot(df_plot_97.5_1, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "C",
-       y = "Population exposed (millions)",
-       x = "Year",
-       color = "") +
-  scale_color_manual(values = c(
-    "HWN_97.5P_2d" = "red",
-    "HWN_97.5P_3d" = "#cb181d",
-    "HWN_97.5P_4d" = "#67000d")) +
-  scale_y_continuous(limits = c(0, 318)) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        plot.title = element_text(size = 24, face = "bold"),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        legend.title = element_text(size = 12),  
-        legend.text = element_text(size = 12))
-
-
-# Combine plots
-combined_plot_pop <-  hw90P_1hw/ hw95P_1hw / hw97.55P_1hw
-combined_plot_pop
-
-# Export
-ggsave("Figures/Sup_fig_13.png", plot = combined_plot_pop, width = 10, height = 15, dpi = 300, bg = "white")
-
-#---------------------------------------------
-# Supplementary figures - 14
-#---------------------------------------------
-# number of heatwaves
-df_plot_90 <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWN_EHF = sum(person_events_HWN_EHF, na.rm = TRUE) / 1e6,
-    HWN_90P_2d = sum(person_events_HWN_90P_2d, na.rm = TRUE) / 1e6,
-    HWN_90P_3d = sum(person_events_HWN_90P_3d, na.rm = TRUE) / 1e6,
-    HWN_90P_4d = sum(person_events_HWN_90P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
-
-df_plot_95 <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWN_95P_2d = sum(person_events_HWN_95P_2d, na.rm = TRUE) / 1e6,
-    HWN_95P_3d = sum(person_events_HWN_95P_3d, na.rm = TRUE) / 1e6,
-    HWN_95P_4d = sum(person_events_HWN_95P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
-
-df_plot_97.5 <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWN_97.5P_2d = sum(person_events_HWN_97.5P_2d, na.rm = TRUE) / 1e6,
-    HWN_97.5P_3d = sum(person_events_HWN_97.5P_3d, na.rm = TRUE) / 1e6,
-    HWN_97.5P_4d = sum(person_events_HWN_97.5P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
-
-
-hw90P <- ggplot(df_plot_90, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "A",
-    y = "Population exposed (millions)",
-    x = "Year",
-    color = "") +
-  scale_color_manual(values = c(
-    "HWN_90P_2d" = "#fed976",
-    "HWN_90P_3d" = "#feb24c",
-    "HWN_90P_4d" = "#fd8d3c",
-    "HWN_EHF" = "#fc4e2a")) +
-  scale_y_continuous(limits = c(0, 3500)) + 	
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        plot.title = element_text(size = 24, face = "bold"),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        legend.title = element_text(size = 12),  
-        legend.text = element_text(size = 12))
-
-
-hw95P <- ggplot(df_plot_95, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "B",
-       y = "Population exposed (millions)",
-       x = "Year",
-       color = "") +
-  scale_color_manual(values = c(
-    "HWN_95P_2d" = "#fcbba1",
-    "HWN_95P_3d" = "#fb6a4a",
-    "HWN_95P_4d" = "#ef3b2c")) +
-  scale_y_continuous(limits = c(0, 3500)) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        plot.title = element_text(size = 24, face = "bold"),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        legend.title = element_text(size = 12),  
-        legend.text = element_text(size = 12))
-
-
-hw97.5P <- ggplot(df_plot_97.5, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "C",
-       y = "Population exposed (millions)",
-       x = "Year",
-       color = "") +
-  scale_color_manual(values = c(
-    "HWN_97.5P_2d" = "red",
-    "HWN_97.5P_3d" = "#cb181d",
-    "HWN_97.5P_4d" = "#67000d")) +
-  scale_y_continuous(limits = c(0, 3500)) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-    plot.title = element_text(size = 24, face = "bold"),
-    axis.text.y = element_text(size = 12),
-    axis.text.x = element_text(size = 12),
-    legend.title = element_text(size = 12),  
-    legend.text = element_text(size = 12))
-
-
-# Combine plots
-combined_plot_pop <-  hw90P/ hw95P / hw97.5P
-combined_plot_pop
-
-# Export
-ggsave("Figures/Sup_fig_14.png", plot = combined_plot_pop, width = 10, height = 15, dpi = 300, bg = "white")
-
+ggsave("Figures/Sup_fig_14.png", combined_plot14,
+       width = 26, height = 28, dpi = 300)
 #---------------------------------------------
 # Supplementary figures - 15
 #---------------------------------------------
-# Pop exposure - days
-df_plot_90_f <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWF_EHF = sum(person_days_HWF_EHF, na.rm = TRUE) / 1e6,
-    HWF_90P_2d = sum(person_days_HWF_90P_2d, na.rm = TRUE) / 1e6,
-    HWF_90P_3d = sum(person_days_HWF_90P_3d, na.rm = TRUE) / 1e6,
-    HWF_90P_4d = sum(person_days_HWF_90P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
+make_hw_plot_pe <- function(hw_def, label) {
+  
+  pop2000_col_pe <- paste0("person_events_2000_", hw_def)
+  pop_col_pe     <- paste0("person_events_", hw_def)
+  
+  df <- data_pop %>%
+    group_by(YEAR) %>%
+    summarise(
+      obs = sum(.data[[pop_col_pe]],     na.rm = TRUE) / 1e6,
+      fix = sum(.data[[pop2000_col_pe]], na.rm = TRUE) / 1e6,
+      .groups = "drop") %>%
+    pivot_longer(cols = c(obs, fix),
+                 names_to = "scenario",
+                 values_to = "exposure") %>%
+    mutate(scenario = recode(scenario,
+                             "fix" = "Fixed population (2000)",
+                             "obs" = "Observed population"))
+  
+  ggplot(df, aes(x = YEAR, y = exposure,
+                 color = scenario, fill = scenario)) +
+    geom_point(alpha = 0.6) +
+    geom_smooth(method = "loess", se = TRUE,
+                span = 0.5, linewidth = 1.2, alpha = 0.2) +
+    scale_color_manual(values = scenario_colors) +
+    scale_fill_manual(values  = scenario_colors) +
+    scale_y_continuous() +
+    coord_cartesian(ylim = c(0, 4000), xlim = c(1999, 2026)) +
+    labs(title = label,
+         x = "Year",
+         y = paste0("Person-events (millions)\n", gsub("HWN_", "", hw_def)),
+         color = "", fill = "") +
+    theme_minimal() +
+    theme(
+      plot.title      = element_text(size = 24, face = "bold"),
+      axis.text       = element_text(size = 22, color = "black"),
+      axis.title.x    = element_text(size = 22, hjust = 0.5),
+      axis.title.y    = element_text(size = 22),
+      legend.position = "bottom",
+      legend.text     = element_text(size = 22))
+}
+plot_list <- map2(hw_definitions, plot_labels, make_hw_plot_pe)
 
-df_plot_95_f <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWF_95P_2d = sum(person_days_HWF_95P_2d, na.rm = TRUE) / 1e6,
-    HWF_95P_3d = sum(person_days_HWF_95P_3d, na.rm = TRUE) / 1e6,
-    HWF_95P_4d = sum(person_days_HWF_95P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
+design <- "
+#A#
+BCD
+EFG
+HIJ
+"
 
-df_plot_97.5_f <- data_pop %>%
-  group_by(YEAR) %>%
-  summarise(
-    HWF_97.5P_2d = sum(person_days_HWF_97.5P_2d, na.rm = TRUE) / 1e6,
-    HWF_97.5P_3d = sum(person_days_HWF_97.5P_3d, na.rm = TRUE) / 1e6,
-    HWF_97.5P_4d = sum(person_days_HWF_97.5P_4d, na.rm = TRUE) / 1e6) %>%
-  pivot_longer(cols = -YEAR, names_to = "variable", values_to = "value")
+combined_plot15 <- wrap_plots(
+  plot_list[[1]],   
+  plot_list[[2]],   
+  plot_list[[3]],   
+  plot_list[[4]],  
+  plot_list[[5]],   
+  plot_list[[6]],   
+  plot_list[[7]],   
+  plot_list[[8]],   
+  plot_list[[9]], 
+  plot_list[[10]]) +
+  plot_layout(design = design, guides = "collect") &
+  theme(legend.position = "bottom")
 
+combined_plot15
 
-hw90P_f <- ggplot(df_plot_90_f, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "A",
-       y = "Population exposed (millions)",
-       x = "Year",
-       color = "") +
-  scale_color_manual(values = c(
-    "HWF_90P_2d" = "#fed976",
-    "HWF_90P_3d" = "#feb24c",
-    "HWF_90P_4d" = "#fd8d3c",
-    "HWF_EHF" = "#fc4e2a")) +
-  scale_y_continuous(limits = c(0, 25000)) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        plot.title = element_text(size = 24, face = "bold"),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        legend.title = element_text(size = 12),  
-        legend.text = element_text(size = 12))
+ggsave("Figures/Sup_fig_15.png", combined_plot15,
+       width = 26, height = 28, dpi = 300)
 
+#---------------------------------------------
+# Supplementary figures - 16
+#---------------------------------------------
+hw_definition_f <- c("HWF_EHF",
+                     "HWF_90P_2d", "HWF_90P_3d", "HWF_90P_4d",
+                     "HWF_95P_2d", "HWF_95P_3d", "HWF_95P_4d",
+                     "HWF_97.5P_2d", "HWF_97.5P_3d", "HWF_97.5P_4d")
 
-hw95P_f <- ggplot(df_plot_95_f, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "B",
-       y = "Population exposed (millions)",
-       x = "Year",
-       color = "") +
-  scale_color_manual(values = c(
-    "HWF_95P_2d" = "#fcbba1",
-    "HWF_95P_3d" = "#fb6a4a",
-    "HWF_95P_4d" = "#ef3b2c")) +
-  scale_y_continuous(limits = c(0, 25000)) +
-  theme_minimal() +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        plot.title = element_text(size = 24, face = "bold"),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        legend.title = element_text(size = 12),  
-        legend.text = element_text(size = 12))
+plot_labels <- LETTERS[1:length(hw_definition_f)]
 
-hw97.5P_f <- ggplot(df_plot_97.5_f, aes(YEAR, value, color = variable)) +
-  geom_point() +
-  geom_smooth(se = FALSE) +
-  labs(title = "C",
-       y = "Population exposed (millions)",
-       x = "Year",
-       color = "") +
-  scale_color_manual(values = c(
-    "HWF_97.5P_2d" = "red",
-    "HWF_97.5P_3d" = "#cb181d",
-    "HWF_97.5P_4d" = "#67000d")) +
-  scale_y_continuous(limits = c(0, 25000)) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        plot.title = element_text(size = 24, face = "bold"),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 12),
-        legend.title = element_text(size = 12),  
-        legend.text = element_text(size = 12))
+make_hw_plot_py <- function(hw_def, label) {
+  
+  pop2000_col_py <- paste0("py_2000_", hw_def)  
+  pop_col_py     <- paste0("py_", hw_def)        
+  
+  df <- data_pop %>%
+    group_by(YEAR) %>%
+    summarise(
+      obs = sum(.data[[pop_col_py]],     na.rm = TRUE) / 1e6,
+      fix = sum(.data[[pop2000_col_py]], na.rm = TRUE) / 1e6,
+      .groups = "drop") %>%
+    pivot_longer(cols = c(obs, fix),
+                 names_to = "scenario",
+                 values_to = "exposure") %>%
+    mutate(scenario = recode(scenario,
+                             "fix" = "Fixed population (2000)",
+                             "obs" = "Observed population"))
+  
+  ggplot(df, aes(x = YEAR, y = exposure,
+                 color = scenario, fill = scenario)) +
+    geom_point(alpha = 0.6) +
+    geom_smooth(method = "loess", se = TRUE,
+                span = 0.5, linewidth = 1.2, alpha = 0.2) +
+    scale_color_manual(values = scenario_colors) +
+    scale_fill_manual(values  = scenario_colors) +
+    scale_y_continuous() +
+    coord_cartesian(ylim = c(0, NA), xlim = c(1999, 2026)) +
+    labs(title = label,
+         x = "Year",
+         y = paste0("Person-years (millions)\n", gsub("HWF_", "", hw_def)),
+         color = "", fill = "") +
+    theme_minimal(base_size = 13) +
+    theme(
+      plot.title      = element_text(size = 24, face = "bold"),
+      axis.text       = element_text(size = 20, color = "black"),
+      axis.title.x    = element_text(size = 20, hjust = 0.5),
+      axis.title.y    = element_text(size = 20),
+      legend.position = "bottom",
+      legend.text     = element_text(size = 20))
+}
 
+plot_list <- map2(hw_definition_f, plot_labels, make_hw_plot_py)
 
-# Combine plots
-combined_plot_pop_f <-  hw90P_f/ hw95P_f / hw97.5P_f
-combined_plot_pop_f
+design <- "
+#A#
+BCD
+EFG
+HIJ
+"
 
-# Export
-ggsave("Figures/Sup_fig_15.png", plot = combined_plot_pop_f, width = 10, height = 15, dpi = 300, bg = "white")
+combined_plot16 <- wrap_plots(
+  plot_list[[1]],
+  plot_list[[2]],
+  plot_list[[3]],
+  plot_list[[4]],
+  plot_list[[5]],
+  plot_list[[6]],
+  plot_list[[7]],
+  plot_list[[8]],
+  plot_list[[9]],
+  plot_list[[10]]
+) +
+  plot_layout(design = design, guides = "collect") &
+  theme(legend.position = "bottom")
 
+combined_plot16
+
+ggsave("Figures/Sup_fig_16.png", combined_plot16,
+       width = 26, height = 28, dpi = 300)

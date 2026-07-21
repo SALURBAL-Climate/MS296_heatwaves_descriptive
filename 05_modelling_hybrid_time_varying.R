@@ -7,17 +7,12 @@
 library(dplyr); library(glmmTMB); library(arrow)
 library(tidyr); library(broom.mixed); library(writexl)
 
-rm(list = ls())
-
-setwd("C:/Users/saral/Desktop/SALURBAL-CLIMATE/SALURBAL-C/MS296")
-
 data <- read_parquet("Data/data_final_model.parquet")
 
-data <- data %>%
-  mutate(SALID1 = as.factor(SALID1),
-         Country = as.factor(Country)) %>%
-  arrange(SALID1, YEAR)
+data$SALID1 <- as.factor(data$SALID1)
+data$Country <- as.factor(data$Country)
 
+data <- data[order(data$SALID1, data$YEAR), ]
 
 # 1. Prepare BETWEEN / WITHIN
 data <- data %>%
@@ -75,7 +70,7 @@ extract_results <- function(model) {
            lcl = exp(conf.low),
            ucl = exp(conf.high),
            stars = ifelse(p.value < 0.05, "*", ""),
-           final = sprintf("%.2f (%.2f–%.2f)%s%s", rr, lcl, ucl, stars, conv_symbol)) %>%
+           final = sprintf("%.2f (%.2f, %.2f)%s%s", rr, lcl, ucl, stars, conv_symbol)) %>%
     select(term, final)
 }
 
@@ -99,15 +94,23 @@ run_all_models <- function(data, hw_sets) {
         wht <- var_pairs[[v]][2]
         
         fml <- as.formula(paste0(dep, " ~ ", btw, " + ", wht,
-                 " + YEAR_dec + (1 | Country/SALID1)"))
+                                 " + YEAR_dec + (1 | Country/SALID1)"))
         
-        model <- glmmTMB(fml, data = data, family = nbinom2(link = "log"))
+        model <- tryCatch(
+          glmmTMB(fml, data = data, family = nbinom2(link = "log")),
+          error = function(e) {
+            message(paste("Error in:", dep, "+", v))
+            return(NULL)
+          }
+        )
         
+        if (is.null(model)) next
+        
+        # Build tab from the model, then append it ✅
         tab <- extract_results(model) %>%
-          mutate(
-            outcome = dep,
-            predictor = v,
-            set = set_name)
+          mutate(dep_var  = dep,
+                 set_name = set_name,
+                 covariate = v)
         
         results_all[[length(results_all) + 1]] <- tab
       }
@@ -117,13 +120,12 @@ run_all_models <- function(data, hw_sets) {
   bind_rows(results_all)
 }
 
-
 # 3. Run
 final_table <- run_all_models(data, all_hw_sets)
 
-table_HWN <- final_table %>% filter(set == "HWN") %>% select(-set)
-table_HWF <- final_table %>% filter(set == "HWF") %>% select(-set)
-table_HWD <- final_table %>% filter(set == "HWD") %>% select(-set)
+table_HWN <- final_table %>% filter(set_name == "HWN") %>% select(-set_name)
+table_HWF <- final_table %>% filter(set_name == "HWF") %>% select(-set_name)
+table_HWD <- final_table %>% filter(set_name == "HWD") %>% select(-set_name)
 
 # 4. Export
 write_xlsx(table_HWN, "Model_results/HWN_hybrid_models.xlsx")
