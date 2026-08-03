@@ -5,10 +5,9 @@
 ##################################################################
 
 library(dplyr); library(arrow); library(RColorBrewer)
-library(tidyr); library(tidyverse); library(gtsummary)
-library(rlang); library(ggthemes); library(ggplot2)
-library(flextable); library(purrr); library(sf)
-library(ggspatial); library(patchwork); library(ggsn)
+library(tidyr); library(tidyverse); library(patchwork)
+library(rlang); library(ggplot2); library(ggspatial)
+library(purrr); library(sf)
 
 data <- read_parquet("Data/data_hw_descriptive.parquet")
 data_pop <- read_parquet("Data/data_final_model.parquet")
@@ -74,7 +73,7 @@ Sup_figure_1_b <- data %>%
                color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
   scale_x_discrete(labels = function(x) gsub(" ", "\n", x)) +
   theme_bw() +
-  ylim(0, 87) + 
+  coord_cartesian(ylim = c(0, 87)) + 
   theme(
     axis.text.x = element_text(size = 20, hjust = 0.5, color = "black"),
     axis.text.y = element_text(size = 20, color = "black"),

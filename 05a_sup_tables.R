@@ -6,9 +6,8 @@
 
 library(tidyverse); library(dplyr); library(arrow)
 library(glue); library(rlang); library(purrr)
-library(flextable); library(openxlsx); library(readxl)
+library(readxl); library(openxlsx); library(stringr)
 library(writexl); library(tidyr); library(gt)
-library(stringr)
 
 data <- read_parquet("Data/data_final_model.parquet")
 
@@ -340,40 +339,43 @@ HWN_CLZ <- read_xlsx("Model_results/CLZ_HWN.xlsx")
 HWF_CLZ <- read_xlsx("Model_results/CLZ_HWF.xlsx")
 HWD_CLZ <- read_xlsx("Model_results/CLZ_HWD.xlsx")
 
-str(HWN_CLZ)
-
 HWN_CLZ <- HWN_CLZ %>%
-  mutate("...1" = sub("^HWN_", "", ...1))
+  rename(model = "...1", 
+         clz = "...2") %>%
+  fill(model) %>%
+  mutate(model = sub("^HWN_", "", model))
 
 HWF_CLZ <- HWF_CLZ %>%
-    rename("model" = "...1", 
-         "clz" = "...2",
-         "Differences at baseline IRR (95% CI) per decade - HWF" = "Differences at baseline IRR (95% CI) per decade",
-         "Temporal trend IRR (95% CI) per decade - HWF" =  "Temporal trend IRR (95% CI) per decade") %>% 
+  rename(model = "...1", 
+         clz = "...2",
+         "Differences at baseline IRR (95% CI) - HWF" = "Differences at baseline IRR (95% CI)",
+         "Temporal trend IRR (95% CI) per decade - HWF" =  "Temporal trend IRR (95% CI) per decade") %>%
+  fill(model) %>%
   mutate(model = sub("^HWF_", "", model)) 
 
 HWD_CLZ <- HWD_CLZ %>%
-  
-  rename("model" = "...1", 
+    rename("model" = "...1", 
          "clz" = "...2",
-         "Differences at baseline IRR (95% CI) per decade - HWD" = "Differences at baseline IRR (95% CI) per decade",
+         "Differences at baseline IRR (95% CI) - HWD" = "Differences at baseline IRR (95% CI)",
          "Temporal trend IRR (95% CI) per decade - HWD" =  "Temporal trend IRR (95% CI) per decade") %>% 
+  fill(model) %>%
   mutate(model = sub("^HWD_", "", model)) 
 
-CLZ_all <- bind_cols(HWN_CLZ, HWF_CLZ, HWD_CLZ)
+CLZ_all <- HWN_CLZ %>%
+  full_join(HWF_CLZ, by = c("model", "clz")) %>%
+  full_join(HWD_CLZ, by = c("model", "clz"))
 
 CLZ_all <- CLZ_all %>%
-  select("...1", "...2",
-         "Differences at baseline IRR (95% CI) per decade", "Temporal trend IRR (95% CI) per decade",
-         "Differences at baseline IRR (95% CI) per decade - HWF", "Temporal trend IRR (95% CI) per decade - HWF",
-         "Differences at baseline IRR (95% CI) per decade - HWD", "Temporal trend IRR (95% CI) per decade - HWD")
+  group_by(model) %>%
+  mutate(model = if_else(row_number() == 1, model, NA_character_)) %>%
+  ungroup()
 
-note_row6 <- tibble("...1" = "Note: * statistically significant (p<0.05)")
+note_row6 <- tibble(model = "Note: * statistically significant (p<0.05)")
 
 CLZ_final_excel <- bind_rows(CLZ_all, note_row6)
 
 CLZ_final_excel <- CLZ_final_excel %>%
-  rename("  " = "...1", "    " = "...2")
+  rename("  " = model, "    " = clz)
 
 write_xlsx(CLZ_final_excel, "Tables/Sup_table_6.xlsx")
 
@@ -418,7 +420,6 @@ HWN_hybrid <- read_xlsx("Model_results/HWN_hybrid_models.xlsx")
 HWF_hybrid <- read_xlsx("Model_results/HWF_hybrid_models.xlsx")
 HWD_hybrid <- read_xlsx("Model_results/HWD_hybrid_models.xlsx")
 
-str(HWN_hybrid)
 # separate tables and filter the results
 # HWN
 HWN_hybrid_btw <- HWN_hybrid %>%
@@ -479,11 +480,12 @@ hybrid_all <- hybrid_all %>%
       covariate == "urban_area_pct" ~ "Urban area",
       covariate == "NDVI" ~ "NDVI",
     TRUE ~ covariate)) %>% 
-  rename("Heatwave definition" = dep_var, "City characteristic" = covariate) 
+  rename("Heatwave definition" = dep_var, "City characteristic (per 1 SD)" = covariate) 
   
 note_row8a <- tibble("Heatwave definition" = "Note: * statistically significant (p<0.05)")
 note_row8b <- tibble("Heatwave definition" = "      + Models with convergence warnings
-                     Estimates are expressed per 1-SD higher standardized value of each continuous city-level predictor.")
+                     Estimates are expressed per 1-SD higher standardized value of each continuous predictor. 
+                     Between-city and within-city components were standardized separately using the standard deviation of their respective distributions")
 
 Sup_table_8 <- bind_rows(hybrid_all, note_row8a, note_row8b)
 
@@ -493,3 +495,35 @@ Sup_table_8_final <- Sup_table_8 %>%
   ungroup()
 
 write_xlsx(Sup_table_8_final, "Tables/Sup_table_8.xlsx")
+
+#-----------------------------------------------------
+# 8. Model  - Sup table 9
+#-----------------------------------------------------
+data <- data %>%
+  group_by(SALID1) %>%
+  mutate(across(c(total_pop, pop_density_guf, pop_over65, GDP, 
+                  education, urban_area_pct, NDVI),
+                list(between = ~mean(.x, na.rm = TRUE),
+                     within  = ~.x - mean(.x, na.rm = TRUE)), .names = "{.col}_{.fn}")) %>%
+  ungroup()
+
+vars <- c(total_pop = "City population",
+          pop_density_guf = "Population density",
+          pop_over65 = "Population ≥65 years",
+          GDP = "GDP per capita",
+          education = "Completed primary education",
+          urban_area_pct = "Urban area",
+          NDVI = "NDVI")
+
+sd_table <- tibble(
+  Variable = unname(vars),
+  SD_between = round(sapply(names(vars), \(v)
+                            sd(data[[paste0(v, "_between")]], na.rm = TRUE)), 3),
+  SD_within = round(sapply(names(vars), \(v)
+                           sd(data[[paste0(v, "_within")]], na.rm = TRUE)), 3))
+sup_table_9 <- sd_table %>%
+  rename("City characteristic" = Variable,
+         "SD (Between-city)" = SD_between,
+         "SD (Within-city)" = SD_within)
+
+write_xlsx(sup_table_9, "Tables/Sup_table_9.xlsx")

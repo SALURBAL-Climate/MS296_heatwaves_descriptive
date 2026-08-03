@@ -6,7 +6,7 @@
 
 library(tidyverse); library(dplyr); library(arrow)
 library(glue); library(rlang); library(writexl)
-library(flextable); library(readxl)
+library(readxl)
 
 #---------------------------------------------
 # Table 1
@@ -54,16 +54,24 @@ write_xlsx(table_1_final_excel, "Tables/Table_1.xlsx")
 HWN_CLZ <- read_xlsx("Model_results/CLZ_HWN.xlsx")
 
 # select only the results for HWN - EHF and select columns
-table_2 <- HWN_CLZ %>% 
-  slice(1:3) %>% 
-  rename(clz = "...2") %>% 
-  select("clz", "Differences at baseline IRR (95% CI) per decade", "Temporal trend IRR (95% CI) per decade")
+start <- which(HWN_CLZ$...1 == "HWN_EHF")
 
-table_2 <- table_2 %>%
-  mutate(clz = recode(clz,
-                      "Arid" = "Arid (76)",
-                      "Temperate" = "Temperate (123)",
-                      "Tropical" = "Tropical (154)"))
+HWN_CLZ <- HWN_CLZ %>%
+  slice(start:(start + 2)) %>%
+  rename(clz = "...2") %>%
+  select(clz, "Differences at baseline IRR (95% CI)", "Temporal trend IRR (95% CI) per decade")
+
+# check n of cities
+clz_n <- read_parquet("Data/data_final_model.parquet") %>%
+  distinct(SALID1, CLZ) %>%
+  count(CLZ, name = "n_cities") %>%
+  rename(clz = CLZ)
+
+# Join
+table_2 <- HWN_CLZ %>%
+  left_join(clz_n, by = "clz") %>%
+  mutate(clz = paste0(clz, " (", n_cities, ")")) %>%
+  select(-n_cities)
 
 note_row2 <- tibble(clz = "Note: * statistically significant (p<0.05)")
 note_row2a <- tibble(clz =  "For the reference category (Tropical), the value corresponds to the main effect of time only.")
@@ -76,14 +84,6 @@ table_2_final_excel <- table_2_final_excel %>%
 #  export as excel
 write_xlsx(table_2_final_excel, "Tables/Table_2.xlsx")
 
-# check n of cities
-# clz_n <- read_parquet("Data/data_final_model.parquet")
-# 
-# clz_number <- clz_n %>%
-#   distinct(SALID1, CLZ) %>%
-#   count(CLZ, name = "n_cities") %>%
-#   rename(variables = CLZ)
-
 #---------------------------------------------
 # Table 3
 #---------------------------------------------
@@ -94,13 +94,13 @@ hybrid_HWN <- hybrid_HWN %>%
 
 HWN_hybrid_btw <- hybrid_HWN %>%
   filter(str_detect(term, "_between_")) %>% 
-  rename("Between-city difference in IRR (CI 95%) per decade" = final) %>% 
-  select(covariate, "Between-city difference in IRR (CI 95%) per decade")
+  rename("Between-city difference in IRR (CI 95%)" = final) %>% 
+  select(covariate, "Between-city difference in IRR (CI 95%)")
 
 HWN_hybrid_wt <- hybrid_HWN %>%
   filter(str_detect(term, "_within_")) %>% 
-  rename("Within-city difference in IRR (CI 95%) per decade" = final) %>% 
-  select(covariate, "Within-city difference in IRR (CI 95%) per decade")
+  rename("Within-city difference in IRR (CI 95%)" = final) %>% 
+  select(covariate, "Within-city difference in IRR (CI 95%)")
 
 hybrid_table <- HWN_hybrid_btw %>% 
   left_join(HWN_hybrid_wt, by ="covariate")
@@ -108,19 +108,20 @@ hybrid_table <- HWN_hybrid_btw %>%
 # organize
 table3 <- hybrid_table %>% 
   mutate(covariate = case_when(
-    covariate == "total_pop" ~ "City population (thousands)",
-    covariate == "pop_density" ~ "Population density (1000 people per km2)",
-    covariate == "GDP" ~ "GDP per capita (US$ thousands)",
-    covariate == "pop_over65" ~ "Population ≥65 years (%)",
-    covariate == "education" ~ "Completed primary education (%)",
-    covariate == "urban_area_pct" ~ "Urban area (%)",
+    covariate == "total_pop" ~ "City population",
+    covariate == "pop_density" ~ "Population density",
+    covariate == "GDP" ~ "GDP per capita",
+    covariate == "pop_over65" ~ "Population ≥65 years",
+    covariate == "education" ~ "Completed primary education",
+    covariate == "urban_area_pct" ~ "Urban area",
     covariate == "NDVI" ~ "NDVI",
     TRUE ~ covariate)) %>% 
-  rename("City characteristic" = covariate) 
+  rename("City characteristic (per 1 SD)" = covariate) 
 
-note_row3 <- tibble("City characteristic" = "Note: * statistically significant (p<0.05);")
-note_row3a <- tibble("City characteristic" = "Estimates are expressed per 1-SD higher standardized value of each continuous city-level predictor;")
-note_row3b <- tibble("City characteristic" = "Each city-level characteristic was evaluated in a separate model.")
+note_row3 <- tibble("City characteristic (per 1 SD)" = "Note: * statistically significant (p<0.05);")
+note_row3a <- tibble("City characteristic (per 1 SD)" = "Estimates are expressed per 1-SD higher standardized value of each continuous predictor. 
+                     Between-city and within-city components were standardized separately using the standard deviation of their respective distributions")
+note_row3b <- tibble("City characteristic (per 1 SD)" = "Each city-level characteristic was evaluated in a separate model.")
 
 table3_final <- bind_rows(table3, note_row3, note_row3a, note_row3b)
 

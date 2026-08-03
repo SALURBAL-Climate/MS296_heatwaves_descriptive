@@ -5,11 +5,10 @@
 ##################################################################
 
 library(dplyr); library(arrow); library(RColorBrewer)
-library(tidyr); library(tidyverse); library(gtsummary)
-library(rlang); library(ggthemes); library(ggplot2)
-library(flextable); library(purrr); library(sf)
+library(tidyr); library(tidyverse);
+library(rlang); library(ggplot2); library(ggtext); 
+library(purrr); library(sf); library(grid)
 library(ggspatial); library(RColorBrewer); library(patchwork)
-library(ggtext); library(grid)
 
 data <- read_parquet("Data/data_hw_descriptive.parquet")
 
@@ -69,7 +68,7 @@ figure1_c <- data %>%
               color = "#fc9272", width = 0.2, na.rm = TRUE, height = 0.5, size = 1, alpha = 0.2) +
   geom_boxplot(aes(x = Country, y = HWN_EHF),
     color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 20) + 
+  coord_cartesian(ylim = c(0, 20)) + 
   scale_x_discrete(labels = function(x) gsub(" ", "\n", x)) +
   theme_bw() +
   theme(
@@ -89,7 +88,7 @@ figure1_d <- data %>%
               color = "#fc8d59", width = 0.2, na.rm = TRUE, size = 1, alpha = 0.2) +
   geom_boxplot(aes(x = Country, y = HWF_EHF),
                color = "#252525", fill = NA, linewidth = 0.5, width = 0.6, outlier.shape = NA) +
-  ylim(0, 176) + 
+  coord_cartesian(ylim = c(0, 176)) + 
   scale_x_discrete(labels = function(x) gsub(" ", "\n", x)) +
   theme_bw() +
   theme(

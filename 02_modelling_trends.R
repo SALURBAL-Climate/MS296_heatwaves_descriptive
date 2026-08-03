@@ -6,7 +6,7 @@
 
 library(dplyr); library(tidyr); library(purrr)
 library(arrow); library(glmmTMB); library(broom.mixed)
-library(performance); library(ggplot2); library(writexl)
+library(ggplot2); library(writexl)
 
 data <- read_parquet("Data/data_final_model.parquet")
 

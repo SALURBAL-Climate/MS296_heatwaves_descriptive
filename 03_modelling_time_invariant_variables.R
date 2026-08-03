@@ -7,7 +7,6 @@
 
 library(dplyr); library(purrr); library(broom.mixed)
 library(glmmTMB); library(writexl); library(arrow)
-library(sjPlot); library(emmeans)
 
 data <- read_parquet("Data/data_final_model.parquet")
 
@@ -106,7 +105,7 @@ run_models_clz <- function(data, hw_vars, output_file){
     mutate(Model=ifelse(row_number()==1, Model, "")) %>%
     ungroup() %>%
     rename(" "=Model, "  "=CLZ,
-           "Differences at baseline IRR (95% CI) per decade"= Baseline_IRR,
+           "Differences at baseline IRR (95% CI)"= Baseline_IRR,
            "Temporal trend IRR (95% CI) per decade"= Annual_IRR)
   
   write_xlsx(final_table, output_file)
