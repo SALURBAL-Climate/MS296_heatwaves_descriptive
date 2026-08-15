@@ -7,23 +7,11 @@
 #############################################################
 
 library(dplyr); library(arrow); library(foreign)
+library(tidyr)
 
 data<- read.csv("Data/2025_12_12/data/L1AD_LONG_20251212.csv")
 data_latitude <- read.dbf("Data/SHP/L1AD_city_center.dbf")
-
-HWD <- read.csv("Data/HWD_L1AD.csv")
-HWD <- HWD %>%
-  select(SALID1, year, matches("^HW.*PW")) %>%
-  rename(HWD_EHF = HWVANNHWDEHFPWL1AD,
-       HWD_90P_2d = HWVANNHWDPW_90_2_L1AD,
-       HWD_90P_3d = HWVANNHWDPW_90_3_L1AD,
-       HWD_90P_4d = HWVANNHWDPW_90_4_L1AD,
-       HWD_95P_2d = HWVANNHWDPW_95_2_L1AD,
-       HWD_95P_3d = HWVANNHWDPW_95_3_L1AD,
-       HWD_95P_4d = HWVANNHWDPW_95_4_L1AD,
-       HWD_97.5P_2d = HWVANNHWDPW_97_2_L1AD,
-       HWD_97.5P_3d = HWVANNHWDPW_97_3_L1AD,
-       HWD_97.5P_4d = HWVANNHWDPW_97_4_L1AD)
+HWD_long <- read.csv("Data/HWVANNUAL_L1AD_20260512.CSV") #updated data of HWD
 
 colnames(data)
 
@@ -126,11 +114,19 @@ colSums(is.na(data_hw)) > 0
 unique(data_hw$Country[is.na(data_hw$pop_over65)]) 
 unique(data_hw$SALID1[is.na(data_hw$pop_over65)])
 
-# 4.join hwd df
+# 4.prepare the updated HWD data and join with the data_hw
+HWD <- HWD_long %>%
+  select(SALID1, YEAR, HWVNDAYS, HWVPCTL, HWVANNHWDPWL1AD)%>%
+  mutate(HWD_name = paste0("HWD_", HWVPCTL, "P_", HWVNDAYS, "d")) %>%
+  select(SALID1, YEAR, HWD_name, HWVANNHWDPWL1AD) %>%
+  pivot_wider(names_from = HWD_name,
+              values_from = HWVANNHWDPWL1AD) %>%
+  rename(HWD_EHF = HWD_0P_0d)
+
 data_hw <- data_hw %>%
   select(-starts_with("HWD"))
 
-data_hw <- data_hw %>% left_join(HWD, by = c("SALID1" = "SALID1", "YEAR" = "year"))
+data_hw <- data_hw %>% left_join(HWD, by = c("SALID1", "YEAR"))
 
 # 5. export table for HW descriptive figures
 write_parquet(data_hw, "Data/data_hw_descriptive.parquet")
@@ -197,4 +193,3 @@ colSums(is.na(data_hw_L1AD_chac_clz)) > 0
 
 # export dataset
 write_parquet(data_hw_L1AD_chac_clz, "Data/data_hw_INCLUDE_NOUNITCHG_L1AD_NI.parquet")
-

@@ -179,9 +179,9 @@ write_xlsx(sup_table2_names, "Tables/Sup_Table_2.xlsx")
 #-----------------------------------------------------
 # 2. Sup table 3
 #-----------------------------------------------------
-data <- read_parquet("Data/data_hw_descriptive.parquet")
+data_ds <- read_parquet("Data/data_hw_descriptive.parquet")
 
-glimpse(data)
+glimpse(data_ds)
 
 hw_vars <- c( "HWN_EHF", 
               "HWN_90P_2d", "HWN_90P_3d", "HWN_90P_4d",
@@ -201,11 +201,11 @@ hw_vars_d <- c( "HWD_EHF",
 all_hw_vars <- c(hw_vars, hw_vars_f, hw_vars_d)
 
 make_table <- function(var) {
-  data %>%
+  data_ds %>%
     summarize(value = glue("{med} ({lower}, {upper})",
-                           med   = round(median(.data[[var]], na.rm = TRUE), 0),
-                           lower = round(quantile(.data[[var]], 0.1, na.rm = TRUE), 0),
-                           upper = round(quantile(.data[[var]], 0.9, na.rm = TRUE), 0)),
+                           med   = round(median(.data_ds[[var]], na.rm = TRUE), 0),
+                           lower = round(quantile(.data_ds[[var]], 0.1, na.rm = TRUE), 0),
+                           upper = round(quantile(.data_ds[[var]], 0.9, na.rm = TRUE), 0)),
               .by = Country) %>%
     pivot_wider(names_from = Country, values_from = value) %>%
     mutate(variables = var, .before = 1)}
