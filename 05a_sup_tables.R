@@ -203,9 +203,9 @@ all_hw_vars <- c(hw_vars, hw_vars_f, hw_vars_d)
 make_table <- function(var) {
   data_ds %>%
     summarize(value = glue("{med} ({lower}, {upper})",
-                           med   = round(median(.data_ds[[var]], na.rm = TRUE), 0),
-                           lower = round(quantile(.data_ds[[var]], 0.1, na.rm = TRUE), 0),
-                           upper = round(quantile(.data_ds[[var]], 0.9, na.rm = TRUE), 0)),
+                           med   = round(median(.data[[var]], na.rm = TRUE), 0),
+                           lower = round(quantile(.data[[var]], 0.1, na.rm = TRUE), 0),
+                           upper = round(quantile(.data[[var]], 0.9, na.rm = TRUE), 0)),
               .by = Country) %>%
     pivot_wider(names_from = Country, values_from = value) %>%
     mutate(variables = var, .before = 1)}
