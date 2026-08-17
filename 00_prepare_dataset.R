@@ -11,7 +11,7 @@ library(tidyr)
 
 data<- read.csv("Data/2025_12_12/data/L1AD_LONG_20251212.csv")
 data_latitude <- read.dbf("Data/SHP/L1AD_city_center.dbf")
-HWD_long <- read.csv("Data/HWVANNUAL_L1AD_20260512.CSV") #updated data of HWD
+HWD_long <- read.csv("Data/2025_12_12/HWVANNUAL_L1AD_20260512.CSV") #updated data of HWD
 
 colnames(data)
 
