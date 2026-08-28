@@ -12,5 +12,5 @@ This repository contains the working code for MS296, a SALURBAL-CLIMATE study de
 |`04_modelling_hybrid_time_varying` | Fits hybrid models for time-varying variables and exports the results.|
 |`05_tables` | Generates the manuscript tables. | 
 |`05a_sup_tables` |  Generates the supplementary tables. |
-|`06_figures` | Plot all manuscrit figures |  
-|`06a_sup_figures` | Plot all manuscrit supplementary figures | 
+|`06_figures` | Plot all manuscript figures |  
+|`06a_sup_figures` | Plot all manuscript supplementary figures | 
